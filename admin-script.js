@@ -44,10 +44,10 @@ jQuery(document).ready(function($) {
             }
         });
     });
-    
+
     $('#dlpom-update-menu').click(function() {
         var data = {
-            'action': 'dlpom_check_menu_items'
+            'action': 'dlpom_update_menu'
         };
 
         $.post(ajaxurl, data, function(response) {
@@ -59,4 +59,5 @@ jQuery(document).ready(function($) {
         });
     });
 });
+
 

@@ -55,7 +55,7 @@ function dlpom_check_menu_item() {
                 $menu_item_exists = false;
 
                 foreach ($menu_items as $item) {
-                    if ($item->title === $menu_item_name) {
+                    if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
                         $menu_item_exists = true;
                         break;
                     }
@@ -310,6 +310,20 @@ function dlpom_admin_footer_script() {
                 }
             });
         });
+
+        $('#dlpom-update-menu').click(function() {
+            var data = {
+                'action': 'dlpom_check_menu_items'
+            };
+
+            $.post(ajaxurl, data, function(response) {
+                if (response.success) {
+                    $('#dlpom-menu-items').html('<h3>Menu Items:</h3>' + response.data);
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            });
+        });
     });
     </script>
     <?php
@@ -391,6 +405,70 @@ function dlpom_update_json() {
     wp_die();
 }
 
+add_action('wp_ajax_dlpom_check_menu_items', 'dlpom_check_menu_items');
+
+function dlpom_check_menu_items() {
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Unauthorized user');
+    }
+
+    // Path to the JSON file
+    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
+
+    // Check if the JSON file exists and read the content
+    if (!file_exists($json_file_path)) {
+        wp_send_json_error('No configuration file found.');
+    }
+
+    $json_content = file_get_contents($json_file_path);
+    $menu_data = json_decode($json_content, true);
+
+    // Check if JSON decoding was successful and required fields are present
+    if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name'])) {
+        wp_send_json_error('Invalid JSON structure.');
+    }
+
+    // Get menu and menu item name from JSON
+    $menu_name = $menu_data['menu_name'];
+    $menu_item_name = $menu_data['menu_item_name'];
+
+    // Get the menu object
+    $menu = wp_get_nav_menu_object($menu_name);
+    if (!$menu) {
+        wp_send_json_error('Menu not found.');
+    }
+
+    // Get the menu item
+    $menu_items = wp_get_nav_menu_items($menu->term_id);
+    $menu_item_id = 0;
+    $child_items = [];
+
+    foreach ($menu_items as $item) {
+        if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
+            $menu_item_id = $item->ID;
+        } elseif ($item->menu_item_parent == $menu_item_id) {
+            $child_items[] = $item->title;
+        }
+    }
+
+    if ($menu_item_id == 0) {
+        wp_send_json_error('Menu item not found.');
+    }
+
+    if (empty($child_items)) {
+        wp_send_json_success('No child items found.');
+    } else {
+        $child_items_list = '<ul>';
+        foreach ($child_items as $child) {
+            $child_items_list .= '<li>' . esc_html($child) . '</li>';
+        }
+        $child_items_list .= '</ul>';
+        wp_send_json_success($child_items_list);
+    }
+}
+
+
+add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
 
 add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
 
@@ -429,11 +507,11 @@ function dlpom_update_menu() {
     // Get the menu item
     $menu_items = wp_get_nav_menu_items($menu->term_id);
     $menu_item_id = 0;
+    $current_child_items = [];
 
     foreach ($menu_items as $item) {
         if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
             $menu_item_id = $item->ID;
-            break;
         }
     }
 
@@ -441,10 +519,10 @@ function dlpom_update_menu() {
         wp_send_json_error('Menu item not found.');
     }
 
-    // Remove all child items of the selected menu item
+    // Retrieve the child items of the selected menu item
     foreach ($menu_items as $item) {
         if ($item->menu_item_parent == $menu_item_id) {
-            wp_delete_post($item->ID, true);
+            $current_child_items[] = $item->title;
         }
     }
 
@@ -454,19 +532,25 @@ function dlpom_update_menu() {
         'post_status' => 'publish'
     ]);
 
-    // Add each post as a new menu item
-    foreach ($recent_posts as $post) {
-        wp_update_nav_menu_item($menu->term_id, 0, [
-            'menu-item-title' => $post['post_title'],
-            'menu-item-object' => 'post',
-            'menu-item-object-id' => $post['ID'],
-            'menu-item-type' => 'post_type',
-            'menu-item-parent-id' => $menu_item_id,
-            'menu-item-status' => 'publish'
-        ]);
+    // Prepare the message with the current child items and the posts to be added
+    $message = "The menu item '{$menu_item_name}' of the menu '{$menu_name}' will have the following items removed:<br><ul>";
+    foreach ($current_child_items as $child_title) {
+        $message .= "<li>" . esc_html($child_title) . "</li>";
+    }
+    $message .= "</ul>";
+
+    if (empty($current_child_items)) {
+        $message .= "<p>No items to remove.</p>";
     }
 
-    wp_send_json_success('Menu updated successfully.');
+    $message .= "The menu item '{$menu_item_name}' will be updated with the following posts:<br><ul>";
+    foreach ($recent_posts as $post) {
+        $message .= "<li>" . esc_html($post['post_title']) . "</li>";
+    }
+    $message .= "</ul>";
+
+    wp_send_json_success($message);
 }
 
-?>
+
+
