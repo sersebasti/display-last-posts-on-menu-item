@@ -14,9 +14,34 @@ jQuery(document).ready(function($) {
 
     $('form').submit(function(e) {
         e.preventDefault();
-        var menu = $('#dlpom_menu_id option:selected').text();
-        var menuItem = $('#dlpom_menu_item_id option:selected').text();
+        var menuId = $('#dlpom_menu_id').val();
+        var menuItemId = $('#dlpom_menu_item_id').val();
         var numPosts = $('#dlpom_number_of_posts').val();
-        alert('Selected Menu: ' + menu + '\nSelected Menu Item: ' + menuItem + '\nNumber of Posts: ' + numPosts);
+
+        if (menuItemId === '') {
+            alert('Please select a menu item.');
+            return;
+        }
+
+        var data = {
+            'action': 'dlpom_update_json',
+            'menu_id': menuId,
+            'menu_item_id': menuItemId,
+            'number_of_posts': numPosts
+        };
+
+        $.post(ajaxurl, data, function(response) {
+            if (response.success) {
+                var jsonData = response.data.data;
+                var message = response.data.message + '\n\n' +
+                              'Menu Name: ' + jsonData.menu_name + '\n' +
+                              'Menu Item Name: ' + jsonData.menu_item_name + '\n' +
+                              'Post Count: ' + jsonData.post_count;
+                alert(message);
+                location.reload(); // Ricarica la pagina dopo che l'alert viene chiuso
+            } else {
+                alert('Error: ' + response.data);
+            }
+        });
     });
 });
