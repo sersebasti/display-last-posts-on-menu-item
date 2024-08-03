@@ -2,11 +2,10 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-
 /*
 Plugin Name: Display Last Posts on Menu Item
-Description: Checks for a specific menu and menu item based on a JSON file.
-Version: 1.0
+Description: Checks for a specific menu and menu item based on a JSON file and verifies post count.
+Version: 1.1
 Author: Your Name
 */
 
@@ -17,7 +16,7 @@ $dlpom_messages = [];
 // Hook the function to WordPress admin initialization
 add_action('admin_init', 'dlpom_check_menu_item');
 
-// Function to check the JSON file and validate the menu and menu item
+// Function to check the JSON file and validate the menu, menu item, and post count
 function dlpom_check_menu_item() {
     global $dlpom_messages;
 
@@ -31,28 +30,35 @@ function dlpom_check_menu_item() {
         $menu_data = json_decode($json_content, true);
 
         // Check if JSON decoding was successful and required fields are present
-        if ($menu_data && isset($menu_data['menu_name']) && isset($menu_data['menu_item_name'])) {
-            // Get menu and menu item name from JSON
+        if ($menu_data && isset($menu_data['menu_name']) && isset($menu_data['menu_item_name']) && isset($menu_data['post_count'])) {
+            // Get menu, menu item name, and post count from JSON
             $menu_name = $menu_data['menu_name'];
             $menu_item_name = $menu_data['menu_item_name'];
+            $post_count = intval($menu_data['post_count']);
+
+            // Get the total number of posts
+            $total_posts = wp_count_posts()->publish;
 
             // Check if the menu and menu item exist in WordPress
             if (dlpom_menu_item_exists($menu_name, $menu_item_name)) {
-                // Store the message
-                $dlpom_messages[] = "Found JSON and check OK";
+                if ($post_count <= $total_posts) {
+                    $dlpom_messages[] = "Found JSON and check OK. Number of posts in JSON: $post_count. Total posts: $total_posts.";
+                } else {
+                    $dlpom_messages[] = "Post count in JSON ($post_count) exceeds the total number of posts ($total_posts).";
+                }
             } else {
                 // Menu or menu item not found, delete the JSON file
                 unlink($json_file_path);
-                $dlpom_messages[] = "No menu item selected";
+                $dlpom_messages[] = "Menu or menu item not found.";
             }
         } else {
             // Invalid JSON structure, delete the file and store message
             unlink($json_file_path);
-            $dlpom_messages[] = "No menu item selected";
+            $dlpom_messages[] = "Invalid JSON structure or missing fields.";
         }
     } else {
         // JSON file does not exist, store message
-        $dlpom_messages[] = "No menu item selected";
+        $dlpom_messages[] = "JSON file not found.";
     }
 }
 
@@ -107,11 +113,14 @@ function dlpom_page() {
 function dlpom_display_output() {
     global $dlpom_messages;
     if (!empty($dlpom_messages)) {
-        echo '<ul>';
+        echo '<table class="widefat">';
+        echo '<thead><tr><th>Message</th></tr></thead>';
+        echo '<tbody>';
         foreach ($dlpom_messages as $message) {
-            echo '<li>' . esc_html($message) . '</li>';
+            echo '<tr><td>' . esc_html($message) . '</td></tr>';
         }
-        echo '</ul>';
+        echo '</tbody>';
+        echo '</table>';
     } else {
         echo '<p>No messages to display.</p>';
     }
