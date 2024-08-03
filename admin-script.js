@@ -44,4 +44,19 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    
+    $('#dlpom-update-menu').click(function() {
+        var data = {
+            'action': 'dlpom_check_menu_items'
+        };
+
+        $.post(ajaxurl, data, function(response) {
+            if (response.success) {
+                $('#dlpom-menu-items').html('<h3>Menu Items:</h3>' + response.data);
+            } else {
+                alert('Error: ' + response.data);
+            }
+        });
+    });
 });
+

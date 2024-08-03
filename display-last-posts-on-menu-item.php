@@ -1,7 +1,4 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
 /*
 Plugin Name: Display Last Posts on Menu Item
 Description: Checks for a specific menu and menu item based on a JSON file and verifies post count.
@@ -70,41 +67,61 @@ function dlpom_check_menu_item() {
                         // Everything is correct
                         $dlpom_messages[] = [
                             'type' => 'success',
-                            'message' => 'The selected menu item and post count are valid.'
+                            'message' => wp_kses_post(
+                                'The selected menu item and post count are valid.<br>' .
+                                '<ul>' .
+                                '<li>Menu: ' . esc_html($menu_name) . '</li>' .
+                                '<li>Menu Item: ' . esc_html($menu_item_name) . '</li>' .
+                                '<li>Number of Posts: ' . esc_html($post_count) . '</li>' .
+                                '</ul>'
+                            )
                         ];
                     } else {
                         // Invalid post count
                         $dlpom_messages[] = [
                             'type' => 'error',
-                            'message' => 'The post count is invalid. It should be between 1 and ' . $total_posts . '.'
+                            'message' => 'Configuration Error - Update Configuration. ' .
+                                         'Invalid post count. It should be between 1 and ' . $total_posts . '. ' .
+                                         'Menu: ' . esc_html($menu_name) . ', ' .
+                                         'Menu Item: ' . esc_html($menu_item_name) . ', ' .
+                                         'Number of Posts: ' . esc_html($post_count)
                         ];
                     }
                 } else {
                     // Menu item does not exist
                     $dlpom_messages[] = [
                         'type' => 'error',
-                        'message' => 'The menu item does not exist.'
+                        'message' => 'Configuration Error - Update Configuration. ' .
+                                     'The menu item does not exist. ' .
+                                     'Menu: ' . esc_html($menu_name) . ', ' .
+                                     'Menu Item: ' . esc_html($menu_item_name) . ', ' .
+                                     'Number of Posts: ' . esc_html($post_count)
                     ];
                 }
             } else {
                 // Menu does not exist
                 $dlpom_messages[] = [
                     'type' => 'error',
-                    'message' => 'The menu does not exist.'
+                    'message' => 'Configuration Error - Update Configuration. ' .
+                                 'The menu does not exist. ' .
+                                 'Menu: ' . esc_html($menu_name) . ', ' .
+                                 'Menu Item: ' . esc_html($menu_item_name) . ', ' .
+                                 'Number of Posts: ' . esc_html($post_count)
                 ];
             }
         } else {
             // Invalid JSON structure
             $dlpom_messages[] = [
                 'type' => 'error',
-                'message' => 'The JSON file structure is invalid.'
+                'message' => 'Configuration Error - Update Configuration. ' .
+                             'The JSON file structure is invalid.'
             ];
         }
     } else {
         // JSON file does not exist
         $dlpom_messages[] = [
             'type' => 'error',
-            'message' => 'The JSON file does not exist.'
+            'message' => 'No Configuration - Update Configuration.'
         ];
     }
 }
@@ -129,7 +146,7 @@ function dlpom_render_settings_page() {
         <h1>Display Last Posts Settings</h1>
         <?php foreach ($dlpom_messages as $message): ?>
             <div class="dlpom-message-<?php echo esc_attr($message['type']); ?>">
-                <?php echo esc_html($message['message']); ?>
+                <?php echo wp_kses_post($message['message']); ?>
             </div>
         <?php endforeach; ?>
         <form method="post" action="options.php">
@@ -139,6 +156,8 @@ function dlpom_render_settings_page() {
             submit_button('Update Configuration');
             ?>
         </form>
+        <button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button>
+        <div id="dlpom-menu-items"></div>
     </div>
     <?php
 }
@@ -211,11 +230,13 @@ function dlpom_menu_item_id_callback() {
         if ($selected_menu) {
             $menu_items = wp_get_nav_menu_items($selected_menu);
             foreach ($menu_items as $item) {
-                ?>
-                <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($selected_menu_item, $item->ID); ?>>
-                    <?php echo esc_html($item->title); ?>
-                </option>
-                <?php
+                if ($item->menu_item_parent == 0) { // Only show top-level items
+                    ?>
+                    <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($selected_menu_item, $item->ID); ?>>
+                        <?php echo esc_html($item->title); ?>
+                    </option>
+                    <?php
+                }
             }
         }
         ?>
@@ -259,10 +280,35 @@ function dlpom_admin_footer_script() {
 
         $('form').submit(function(e) {
             e.preventDefault();
-            var menu = $('#dlpom_menu_id option:selected').text();
-            var menuItem = $('#dlpom_menu_item_id option:selected').text();
+            var menuId = $('#dlpom_menu_id').val();
+            var menuItemId = $('#dlpom_menu_item_id').val();
             var numPosts = $('#dlpom_number_of_posts').val();
-            alert('Selected Menu: ' + menu + '\nSelected Menu Item: ' + menuItem + '\nNumber of Posts: ' + numPosts);
+
+            if (menuItemId === '') {
+                alert('Please select a menu item.');
+                return;
+            }
+
+            var data = {
+                'action': 'dlpom_update_json',
+                'menu_id': menuId,
+                'menu_item_id': menuItemId,
+                'number_of_posts': numPosts
+            };
+
+            $.post(ajaxurl, data, function(response) {
+                if (response.success) {
+                    var jsonData = response.data.data;
+                    var message = response.data.message + '\n\n' +
+                                  'Menu Name: ' + jsonData.menu_name + '\n' +
+                                  'Menu Item Name: ' + jsonData.menu_item_name + '\n' +
+                                  'Post Count: ' + jsonData.post_count;
+                    alert(message);
+                    location.reload(); // Ricarica la pagina dopo che l'alert viene chiuso
+                } else {
+                    alert('Error: ' + response.data);
+                }
+            });
         });
     });
     </script>
@@ -270,7 +316,6 @@ function dlpom_admin_footer_script() {
 }
 
 add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
-
 
 function dlpom_get_menu_items() {
     $menu_id = intval($_POST['menu_id']);
@@ -290,8 +335,6 @@ function dlpom_get_menu_items() {
 
     wp_die();
 }
-
-
 
 add_action('wp_ajax_dlpom_update_json', 'dlpom_update_json');
 
@@ -349,5 +392,81 @@ function dlpom_update_json() {
 }
 
 
+add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
+
+function dlpom_update_menu() {
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Unauthorized user');
+    }
+
+    // Path to the JSON file
+    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
+
+    // Check if the JSON file exists and read the content
+    if (!file_exists($json_file_path)) {
+        wp_send_json_error('No configuration file found.');
+    }
+
+    $json_content = file_get_contents($json_file_path);
+    $menu_data = json_decode($json_content, true);
+
+    // Check if JSON decoding was successful and required fields are present
+    if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name']) || !isset($menu_data['post_count'])) {
+        wp_send_json_error('Invalid JSON structure.');
+    }
+
+    // Get menu, menu item name, and post count from JSON
+    $menu_name = $menu_data['menu_name'];
+    $menu_item_name = $menu_data['menu_item_name'];
+    $number_of_posts = intval($menu_data['post_count']);
+
+    // Get the menu object
+    $menu = wp_get_nav_menu_object($menu_name);
+    if (!$menu) {
+        wp_send_json_error('Menu not found.');
+    }
+
+    // Get the menu item
+    $menu_items = wp_get_nav_menu_items($menu->term_id);
+    $menu_item_id = 0;
+
+    foreach ($menu_items as $item) {
+        if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
+            $menu_item_id = $item->ID;
+            break;
+        }
+    }
+
+    if ($menu_item_id == 0) {
+        wp_send_json_error('Menu item not found.');
+    }
+
+    // Remove all child items of the selected menu item
+    foreach ($menu_items as $item) {
+        if ($item->menu_item_parent == $menu_item_id) {
+            wp_delete_post($item->ID, true);
+        }
+    }
+
+    // Get the latest posts
+    $recent_posts = wp_get_recent_posts([
+        'numberposts' => $number_of_posts,
+        'post_status' => 'publish'
+    ]);
+
+    // Add each post as a new menu item
+    foreach ($recent_posts as $post) {
+        wp_update_nav_menu_item($menu->term_id, 0, [
+            'menu-item-title' => $post['post_title'],
+            'menu-item-object' => 'post',
+            'menu-item-object-id' => $post['ID'],
+            'menu-item-type' => 'post_type',
+            'menu-item-parent-id' => $menu_item_id,
+            'menu-item-status' => 'publish'
+        ]);
+    }
+
+    wp_send_json_success('Menu updated successfully.');
+}
 
 ?>
