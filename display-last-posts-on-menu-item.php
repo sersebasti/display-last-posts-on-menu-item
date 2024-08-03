@@ -13,6 +13,17 @@ Author: Your Name
 global $dlpom_messages;
 $dlpom_messages = [];
 
+// Hook to enqueue admin styles and scripts
+add_action('admin_enqueue_scripts', 'dlpom_enqueue_admin_assets');
+
+function dlpom_enqueue_admin_assets($hook) {
+    if ($hook !== 'toplevel_page_dlpom') {
+        return;
+    }
+    wp_enqueue_style('dlpom-admin-style', plugin_dir_url(__FILE__) . 'admin-style.css');
+    wp_enqueue_script('dlpom-admin-script', plugin_dir_url(__FILE__) . 'admin-script.js', array('jquery'), null, true);
+}
+
 // Hook the function to WordPress admin initialization
 add_action('admin_init', 'dlpom_check_menu_item');
 
@@ -39,89 +50,249 @@ function dlpom_check_menu_item() {
             // Get the total number of posts
             $total_posts = wp_count_posts()->publish;
 
-            // Check if the menu and menu item exist in WordPress
-            if (dlpom_menu_item_exists($menu_name, $menu_item_name)) {
-                if ($post_count <= $total_posts) {
-                    $dlpom_messages[] = "Found JSON and check OK. Number of posts in JSON: $post_count. Total posts: $total_posts.";
+            // Check if the menu exists
+            $menu = wp_get_nav_menu_object($menu_name);
+            if ($menu) {
+                // Menu exists, now check if the menu item exists
+                $menu_items = wp_get_nav_menu_items($menu->term_id);
+                $menu_item_exists = false;
+
+                foreach ($menu_items as $item) {
+                    if ($item->title === $menu_item_name) {
+                        $menu_item_exists = true;
+                        break;
+                    }
+                }
+
+                if ($menu_item_exists) {
+                    // Menu item exists, now check the post count
+                    if ($post_count > 0 && $post_count <= $total_posts) {
+                        // Everything is correct
+                        $dlpom_messages[] = [
+                            'type' => 'success',
+                            'message' => 'The selected menu item and post count are valid.'
+                        ];
+                    } else {
+                        // Invalid post count
+                        $dlpom_messages[] = [
+                            'type' => 'error',
+                            'message' => 'The post count is invalid. It should be between 1 and ' . $total_posts . '.'
+                        ];
+                    }
                 } else {
-                    $dlpom_messages[] = "Post count in JSON ($post_count) exceeds the total number of posts ($total_posts).";
+                    // Menu item does not exist
+                    $dlpom_messages[] = [
+                        'type' => 'error',
+                        'message' => 'The menu item does not exist.'
+                    ];
                 }
             } else {
-                // Menu or menu item not found, delete the JSON file
-                unlink($json_file_path);
-                $dlpom_messages[] = "Menu or menu item not found.";
+                // Menu does not exist
+                $dlpom_messages[] = [
+                    'type' => 'error',
+                    'message' => 'The menu does not exist.'
+                ];
             }
         } else {
-            // Invalid JSON structure, delete the file and store message
-            unlink($json_file_path);
-            $dlpom_messages[] = "Invalid JSON structure or missing fields.";
+            // Invalid JSON structure
+            $dlpom_messages[] = [
+                'type' => 'error',
+                'message' => 'The JSON file structure is invalid.'
+            ];
         }
     } else {
-        // JSON file does not exist, store message
-        $dlpom_messages[] = "JSON file not found.";
+        // JSON file does not exist
+        $dlpom_messages[] = [
+            'type' => 'error',
+            'message' => 'The JSON file does not exist.'
+        ];
     }
 }
 
-// Function to check if a menu and menu item exist
-function dlpom_menu_item_exists($menu_name, $menu_item_name) {
-    // Get the menu by name
-    $menu = wp_get_nav_menu_object($menu_name);
-    if ($menu) {
-        // Get the menu items
-        $menu_items = wp_get_nav_menu_items($menu->term_id);
-        if ($menu_items) {
-            // Check if the specified menu item exists
-            foreach ($menu_items as $item) {
-                if ($item->title == $menu_item_name) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
+// Add settings page
+add_action('admin_menu', 'dlpom_add_settings_page');
 
-// Hook to add a new menu item in the admin panel
-add_action('admin_menu', 'dlpom_menu');
-
-// Function to add a menu item and the corresponding page
-function dlpom_menu() {
+function dlpom_add_settings_page() {
     add_menu_page(
-        'Display Last Posts on Menu Item',  // Page title
-        'Last Posts Menu',                  // Menu title
-        'manage_options',                   // Capability
-        'dlpom',                            // Menu slug
-        'dlpom_page',                       // Function to display the page content
-        'dashicons-welcome-widgets-menus',  // Icon URL
-        6                                   // Position
+        'Display Last Posts Settings',
+        'Display Last Posts',
+        'manage_options',
+        'dlpom',
+        'dlpom_render_settings_page'
     );
 }
 
-// Function to display the plugin page content
-function dlpom_page() {
+function dlpom_render_settings_page() {
+    global $dlpom_messages;
     ?>
     <div class="wrap">
-        <h1>Display Last Posts on Menu Item</h1>
-        <div id="dlpom-output">
-            <?php dlpom_display_output(); ?>
-        </div>
+        <h1>Display Last Posts Settings</h1>
+        <?php foreach ($dlpom_messages as $message): ?>
+            <div class="dlpom-message-<?php echo esc_attr($message['type']); ?>">
+                <?php echo esc_html($message['message']); ?>
+            </div>
+        <?php endforeach; ?>
+        <form method="post" action="options.php">
+            <?php
+            settings_fields('dlpom_settings_group');
+            do_settings_sections('dlpom');
+            submit_button('Update Configuration');
+            ?>
+        </form>
     </div>
     <?php
 }
 
-// Function to display the messages on the plugin page
-function dlpom_display_output() {
-    global $dlpom_messages;
-    if (!empty($dlpom_messages)) {
-        echo '<table class="widefat">';
-        echo '<thead><tr><th>Message</th></tr></thead>';
-        echo '<tbody>';
-        foreach ($dlpom_messages as $message) {
-            echo '<tr><td>' . esc_html($message) . '</td></tr>';
-        }
-        echo '</tbody>';
-        echo '</table>';
-    } else {
-        echo '<p>No messages to display.</p>';
-    }
+add_action('admin_init', 'dlpom_register_settings');
+
+function dlpom_register_settings() {
+    register_setting('dlpom_settings_group', 'dlpom_menu_id');
+    register_setting('dlpom_settings_group', 'dlpom_menu_item_id');
+    register_setting('dlpom_settings_group', 'dlpom_number_of_posts');
+
+    add_settings_section(
+        'dlpom_settings_section',
+        'Menu Item and Number of Posts',
+        'dlpom_settings_section_callback',
+        'dlpom'
+    );
+
+    add_settings_field(
+        'dlpom_menu_id',
+        'Select Menu',
+        'dlpom_menu_id_callback',
+        'dlpom',
+        'dlpom_settings_section'
+    );
+
+    add_settings_field(
+        'dlpom_menu_item_id',
+        'Select Menu Item',
+        'dlpom_menu_item_id_callback',
+        'dlpom',
+        'dlpom_settings_section'
+    );
+
+    add_settings_field(
+        'dlpom_number_of_posts',
+        'Number of Posts',
+        'dlpom_number_of_posts_callback',
+        'dlpom',
+        'dlpom_settings_section'
+    );
 }
+
+function dlpom_settings_section_callback() {
+    echo 'Select the menu and menu item, and specify the number of posts to display.';
+}
+
+function dlpom_menu_id_callback() {
+    $menus = wp_get_nav_menus();
+    $selected_menu = get_option('dlpom_menu_id');
+    ?>
+    <select id="dlpom_menu_id" name="dlpom_menu_id">
+        <option value=""><?php _e('Select a menu', 'dlpom'); ?></option>
+        <?php foreach ($menus as $menu): ?>
+            <option value="<?php echo esc_attr($menu->term_id); ?>" <?php selected($selected_menu, $menu->term_id); ?>>
+                <?php echo esc_html($menu->name); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <?php
+}
+
+function dlpom_menu_item_id_callback() {
+    $selected_menu = get_option('dlpom_menu_id');
+    $selected_menu_item = get_option('dlpom_menu_item_id');
+    ?>
+    <select id="dlpom_menu_item_id" name="dlpom_menu_item_id" <?php if (!$selected_menu) echo 'disabled'; ?>>
+        <option value=""><?php _e('Select a menu item', 'dlpom'); ?></option>
+        <?php
+        if ($selected_menu) {
+            $menu_items = wp_get_nav_menu_items($selected_menu);
+            foreach ($menu_items as $item) {
+                ?>
+                <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($selected_menu_item, $item->ID); ?>>
+                    <?php echo esc_html($item->title); ?>
+                </option>
+                <?php
+            }
+        }
+        ?>
+    </select>
+    <?php
+}
+
+function dlpom_number_of_posts_callback() {
+    $number_of_posts = get_option('dlpom_number_of_posts', 5);
+    $total_posts = wp_count_posts()->publish;
+    ?>
+    <select id="dlpom_number_of_posts" name="dlpom_number_of_posts">
+        <?php for ($i = 1; $i <= $total_posts; $i++): ?>
+            <option value="<?php echo $i; ?>" <?php selected($number_of_posts, $i); ?>>
+                <?php echo $i; ?>
+            </option>
+        <?php endfor; ?>
+    </select>
+    <?php
+}
+
+// Show an alert with the selected configuration when the form is submitted
+add_action('admin_footer', 'dlpom_admin_footer_script');
+
+function dlpom_admin_footer_script() {
+    ?>
+    <script>
+    jQuery(document).ready(function($) {
+        $('#dlpom_menu_id').change(function() {
+            var menuId = $(this).val();
+            var data = {
+                'action': 'dlpom_get_menu_items',
+                'menu_id': menuId
+            };
+
+            $.post(ajaxurl, data, function(response) {
+                $('#dlpom_menu_item_id').html(response);
+                $('#dlpom_menu_item_id').prop('disabled', false);
+            });
+        });
+
+        $('form').submit(function(e) {
+            e.preventDefault();
+            var menu = $('#dlpom_menu_id option:selected').text();
+            var menuItem = $('#dlpom_menu_item_id option:selected').text();
+            var numPosts = $('#dlpom_number_of_posts').val();
+            alert('Selected Menu: ' + menu + '\nSelected Menu Item: ' + menuItem + '\nNumber of Posts: ' + numPosts);
+        });
+    });
+    </script>
+    <?php
+}
+
+add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
+
+
+function dlpom_get_menu_items() {
+    $menu_id = intval($_POST['menu_id']);
+    $menu_items = wp_get_nav_menu_items($menu_id);
+
+    if ($menu_items) {
+        $options = '<option value="">' . __('Select a menu item', 'dlpom') . '</option>';
+        foreach ($menu_items as $item) {
+            if ($item->menu_item_parent == 0) { // Only show top-level items
+                $options .= sprintf('<option value="%s">%s</option>', esc_attr($item->ID), esc_html($item->title));
+            }
+        }
+        echo $options;
+    } else {
+        echo '<option value="">' . __('No items found', 'dlpom') . '</option>';
+    }
+
+    wp_die();
+}
+
+
+
+
+
+?>

@@ -1,0 +1,30 @@
+/* admin-style.css */
+.dlpom-message-success {
+    background-color: #d4edda;
+    color: #45be61;
+    border: 1px solid #c3e6cb;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.dlpom-message-error {
+    background-color: #f8d7da;
+    color: #d64742;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.dlpom-message-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.dlpom-message-table th, .dlpom-message-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.dlpom-message-table th {
+    background-color: #f4f4f4;
+}
