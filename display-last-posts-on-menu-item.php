@@ -14,6 +14,10 @@ $dlpom_messages = [];
 add_action('admin_enqueue_scripts', 'dlpom_enqueue_admin_assets');
 
 function dlpom_enqueue_admin_assets($hook) {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+
     if ($hook !== 'toplevel_page_dlpom') {
         return;
     }
@@ -26,6 +30,10 @@ add_action('admin_init', 'dlpom_check_menu_item');
 
 // Function to check the JSON file and validate the menu, menu item, and post count
 function dlpom_check_menu_item() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+    
     global $dlpom_messages;
 
     // Path to the JSON file
@@ -165,6 +173,10 @@ function dlpom_render_settings_page() {
 add_action('admin_init', 'dlpom_register_settings');
 
 function dlpom_register_settings() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+    
     register_setting('dlpom_settings_group', 'dlpom_menu_id');
     register_setting('dlpom_settings_group', 'dlpom_menu_item_id');
     register_setting('dlpom_settings_group', 'dlpom_number_of_posts');
@@ -265,65 +277,72 @@ function dlpom_admin_footer_script() {
     ?>
     <script>
     jQuery(document).ready(function($) {
-        $('#dlpom_menu_id').change(function() {
-            var menuId = $(this).val();
-            var data = {
-                'action': 'dlpom_get_menu_items',
-                'menu_id': menuId
-            };
+        // Check if we're on the plugin page
+        if (window.location.href.indexOf('page=dlpom') !== -1) {
+            $('#dlpom_menu_id').change(function() {
+                var menuId = $(this).val();
+                var data = {
+                    'action': 'dlpom_get_menu_items',
+                    'menu_id': menuId
+                };
 
-            $.post(ajaxurl, data, function(response) {
-                $('#dlpom_menu_item_id').html(response);
-                $('#dlpom_menu_item_id').prop('disabled', false);
+                $.post(ajaxurl, data, function(response) {
+                    if (response.success) {
+                        $('#dlpom_menu_item_id').html(response.data);
+                        $('#dlpom_menu_item_id').prop('disabled', false);
+                    } else {
+                        alert('Error: ' + response.data);
+                    }
+                });
             });
-        });
 
-        $('form').submit(function(e) {
-            e.preventDefault();
-            var menuId = $('#dlpom_menu_id').val();
-            var menuItemId = $('#dlpom_menu_item_id').val();
-            var numPosts = $('#dlpom_number_of_posts').val();
+            $('form').submit(function(e) {
+                e.preventDefault();
+                var menuId = $('#dlpom_menu_id').val();
+                var menuItemId = $('#dlpom_menu_item_id').val();
+                var numPosts = $('#dlpom_number_of_posts').val();
 
-            if (menuItemId === '') {
-                alert('Please select a menu item.');
-                return;
-            }
-
-            var data = {
-                'action': 'dlpom_update_json',
-                'menu_id': menuId,
-                'menu_item_id': menuItemId,
-                'number_of_posts': numPosts
-            };
-
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    var jsonData = response.data.data;
-                    var message = response.data.message + '\n\n' +
-                                  'Menu Name: ' + jsonData.menu_name + '\n' +
-                                  'Menu Item Name: ' + jsonData.menu_item_name + '\n' +
-                                  'Post Count: ' + jsonData.post_count;
-                    alert(message);
-                    location.reload(); // Ricarica la pagina dopo che l'alert viene chiuso
-                } else {
-                    alert('Error: ' + response.data);
+                if (menuItemId === '') {
+                    alert('Please select a menu item.');
+                    return;
                 }
-            });
-        });
 
-        $('#dlpom-update-menu').click(function() {
-            var data = {
-                'action': 'dlpom_check_menu_items'
-            };
+                var data = {
+                    'action': 'dlpom_update_json',
+                    'menu_id': menuId,
+                    'menu_item_id': menuItemId,
+                    'number_of_posts': numPosts
+                };
 
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    $('#dlpom-menu-items').html('<h3>Menu Items:</h3>' + response.data);
-                } else {
-                    alert('Error: ' + response.data);
-                }
+                $.post(ajaxurl, data, function(response) {
+                    if (response.success) {
+                        var jsonData = response.data.data;
+                        var message = response.data.message + '\n\n' +
+                                      'Menu Name: ' + jsonData.menu_name + '\n' +
+                                      'Menu Item Name: ' + jsonData.menu_item_name + '\n' +
+                                      'Post Count: ' + jsonData.post_count;
+                        alert(message);
+                        location.reload(); // Ricarica la pagina dopo che l'alert viene chiuso
+                    } else {
+                        alert('Error: ' + response.data);
+                    }
+                });
             });
-        });
+
+            $('#dlpom-update-menu').click(function() {
+                var data = {
+                    'action': 'dlpom_update_menu'
+                };
+
+                $.post(ajaxurl, data, function(response) {
+                    if (response.success) {
+                        $('#dlpom-menu-items').html('<h3>Menu Items:</h3>' + response.data);
+                    } else {
+                        alert('Error: ' + response.data);
+                    }
+                });
+            });
+        }
     });
     </script>
     <?php
@@ -332,6 +351,10 @@ function dlpom_admin_footer_script() {
 add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
 
 function dlpom_get_menu_items() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+
     $menu_id = intval($_POST['menu_id']);
     $menu_items = wp_get_nav_menu_items($menu_id);
 
@@ -342,17 +365,19 @@ function dlpom_get_menu_items() {
                 $options .= sprintf('<option value="%s">%s</option>', esc_attr($item->ID), esc_html($item->title));
             }
         }
-        echo $options;
+        wp_send_json_success($options);
     } else {
-        echo '<option value="">' . __('No items found', 'dlpom') . '</option>';
+        wp_send_json_error('No items found');
     }
-
-    wp_die();
 }
 
 add_action('wp_ajax_dlpom_update_json', 'dlpom_update_json');
 
 function dlpom_update_json() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Unauthorized user');
     }
@@ -401,13 +426,15 @@ function dlpom_update_json() {
     } else {
         wp_send_json_error('Invalid data provided.');
     }
-
-    wp_die();
 }
 
 add_action('wp_ajax_dlpom_check_menu_items', 'dlpom_check_menu_items');
 
 function dlpom_check_menu_items() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Unauthorized user');
     }
@@ -467,12 +494,13 @@ function dlpom_check_menu_items() {
     }
 }
 
-
-add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
-
 add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
 
 function dlpom_update_menu() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Unauthorized user');
     }
@@ -551,6 +579,3 @@ function dlpom_update_menu() {
 
     wp_send_json_success($message);
 }
-
-
-
