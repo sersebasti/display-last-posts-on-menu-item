@@ -166,6 +166,15 @@ function dlpom_render_settings_page() {
         </form>
         <button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button>
         <div id="dlpom-menu-items"></div>
+        
+        <br>
+        <button id="dlpom-delete-items" class="button button-primary">Delete Items</button>
+
+        <div id="dlpom-progress-container">
+            <div id="dlpom-progress-bar" style="width: 0; background-color: #4caf50; color: white; text-align: center;">100%</div>
+        </div>
+        <div id="dlpom-menu-items"></div>
+    
     </div>
     <?php
 }
@@ -270,83 +279,6 @@ function dlpom_number_of_posts_callback() {
     <?php
 }
 
-// Show an alert with the selected configuration when the form is submitted
-add_action('admin_footer', 'dlpom_admin_footer_script');
-
-function dlpom_admin_footer_script() {
-    ?>
-    <script>
-    jQuery(document).ready(function($) {
-        // Check if we're on the plugin page
-        if (window.location.href.indexOf('page=dlpom') !== -1) {
-            $('#dlpom_menu_id').change(function() {
-                var menuId = $(this).val();
-                var data = {
-                    'action': 'dlpom_get_menu_items',
-                    'menu_id': menuId
-                };
-
-                $.post(ajaxurl, data, function(response) {
-                    if (response.success) {
-                        $('#dlpom_menu_item_id').html(response.data);
-                        $('#dlpom_menu_item_id').prop('disabled', false);
-                    } else {
-                        alert('Error: ' + response.data);
-                    }
-                });
-            });
-
-            $('form').submit(function(e) {
-                e.preventDefault();
-                var menuId = $('#dlpom_menu_id').val();
-                var menuItemId = $('#dlpom_menu_item_id').val();
-                var numPosts = $('#dlpom_number_of_posts').val();
-
-                if (menuItemId === '') {
-                    alert('Please select a menu item.');
-                    return;
-                }
-
-                var data = {
-                    'action': 'dlpom_update_json',
-                    'menu_id': menuId,
-                    'menu_item_id': menuItemId,
-                    'number_of_posts': numPosts
-                };
-
-                $.post(ajaxurl, data, function(response) {
-                    if (response.success) {
-                        var jsonData = response.data.data;
-                        var message = response.data.message + '\n\n' +
-                                      'Menu Name: ' + jsonData.menu_name + '\n' +
-                                      'Menu Item Name: ' + jsonData.menu_item_name + '\n' +
-                                      'Post Count: ' + jsonData.post_count;
-                        alert(message);
-                        location.reload(); // Ricarica la pagina dopo che l'alert viene chiuso
-                    } else {
-                        alert('Error: ' + response.data);
-                    }
-                });
-            });
-
-            $('#dlpom-update-menu').click(function() {
-                var data = {
-                    'action': 'dlpom_update_menu'
-                };
-
-                $.post(ajaxurl, data, function(response) {
-                    if (response.success) {
-                        $('#dlpom-menu-items').html('<h3>Menu Items:</h3>' + response.data);
-                    } else {
-                        alert('Error: ' + response.data);
-                    }
-                });
-            });
-        }
-    });
-    </script>
-    <?php
-}
 
 add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
 
@@ -354,7 +286,8 @@ function dlpom_get_menu_items() {
     if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
         return;
     }
-
+    //wp_send_json_success("vai");
+    
     $menu_id = intval($_POST['menu_id']);
     $menu_items = wp_get_nav_menu_items($menu_id);
 
@@ -369,6 +302,7 @@ function dlpom_get_menu_items() {
     } else {
         wp_send_json_error('No items found');
     }
+      
 }
 
 add_action('wp_ajax_dlpom_update_json', 'dlpom_update_json');
@@ -578,4 +512,126 @@ function dlpom_update_menu() {
     $message .= "</ul>";
 
     wp_send_json_success($message);
+}
+
+
+add_action('wp_ajax_dlpom_get_child_items', 'dlpom_get_child_items');
+
+function dlpom_get_child_items() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }
+
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Unauthorized user');
+    }
+
+    // Path to the JSON file
+    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
+
+    // Check if the JSON file exists and read the content
+    if (!file_exists($json_file_path)) {
+        wp_send_json_error('No configuration file found.');
+    }
+
+    $json_content = file_get_contents($json_file_path);
+    $menu_data = json_decode($json_content, true);
+
+    // Check if JSON decoding was successful and required fields are present
+    if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name']) || !isset($menu_data['post_count'])) {
+        wp_send_json_error('Invalid JSON structure.');
+    }
+
+    // Get menu, menu item name, and post count from JSON
+    $menu_name = $menu_data['menu_name'];
+    $menu_item_name = $menu_data['menu_item_name'];
+    $number_of_posts = intval($menu_data['post_count']);
+
+    // Get the menu object
+    $menu = wp_get_nav_menu_object($menu_name);
+    if (!$menu) {
+        wp_send_json_error('Menu not found.');
+    }
+
+    // Get the menu item
+    $menu_items = wp_get_nav_menu_items($menu->term_id);
+    $menu_item_id = 0;
+    $current_child_items = [];
+
+    foreach ($menu_items as $item) {
+        if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
+            $menu_item_id = $item->ID;
+        }
+    }
+
+
+    if ($menu_item_id == 0) {
+        wp_send_json_error('Menu item not found.');
+    }
+
+
+    // Retrieve the child items of the selected menu item
+    foreach ($menu_items as $item) {
+        if ($item->menu_item_parent == $menu_item_id) {
+            $current_child_items[] = $item->ID; // Store the IDs of the child items
+        }
+    }
+    
+    // Remove the child items from the menu by updating their parent to 0 (unassigning them from any menu)
+    /*
+    foreach ($current_child_items as $child_item_id) {
+        wp_update_nav_menu_item($menu->term_id, $child_item_id, [
+            'menu-item-parent-id' => 0,
+            'menu-item-status' => 'draft' // Optional: Set status to draft if you want to hide them from the front end
+        ]);
+    } 
+    */
+    
+    wp_send_json_success(json_encode($current_child_items));
+
+}
+
+add_action('wp_ajax_dlpom_delete_single_item', 'dlpom_delete_single_item');
+
+function dlpom_delete_single_item() {
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }    
+    
+    if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized user');
+    }
+
+
+    $item_id = intval($_POST['item_id']);
+    if ($item_id > 0) {
+        // Recursively delete the item and its sub-items
+        dlpom_delete_item_and_subitems($item_id);
+        wp_send_json_success('Item and its sub-items removed successfully.');
+    } else {
+        wp_send_json_error('Invalid item ID.');
+    }
+    
+}
+
+function dlpom_delete_item_and_subitems($item_id) {
+
+    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
+        return;
+    }  
+    // Get sub-items
+    $sub_items = get_posts(array(
+        'post_type' => 'nav_menu_item',
+        'meta_key' => '_menu_item_menu_item_parent',
+        'meta_value' => $item_id,
+        'numberposts' => -1
+    ));
+
+    // Recursively delete each sub-item
+    foreach ($sub_items as $sub_item) {
+        dlpom_delete_item_and_subitems($sub_item->ID);
+    }
+
+    // Delete the item itself
+    wp_delete_post($item_id, true); // True ensures the item is permanently deleted
 }

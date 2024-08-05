@@ -36,3 +36,18 @@
 .dlpom-message-table th {
     background-color: #f4f4f4;
 }
+
+#dlpom-progress-container {
+    width: 100%;
+    background-color: #f3f3f3;
+    border: 1px solid #ccc;
+    margin-top: 20px;
+}
+
+#dlpom-progress-bar {
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    color: white;
+    background-color: #4caf50;
+}
