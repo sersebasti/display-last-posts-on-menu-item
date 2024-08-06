@@ -1,9 +1,13 @@
 <?php
 /*
 Plugin Name: Display Last Posts on Menu Item
-Description: Checks for a specific menu and menu item based on a JSON file and verifies post count.
-Version: 1.1
-Author: Your Name
+Plugin URI: https://sersebasti.ddns.net/wp_plugins/display-last-posts-on-menu-item/
+Description: A plugin to display the latest posts in a specific menu item, helping to dynamically update the menu with recent content.
+Version: 1.0.0
+Author: Sergio Sebastiani
+Author URI: https://sersebasti.ddns.net/CV
+License: GPL2
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 // Initialize a global variable to store messages
@@ -152,11 +156,7 @@ function dlpom_render_settings_page() {
     ?>
     <div class="wrap">
         <h1>Display Last Posts Settings</h1>
-        <?php foreach ($dlpom_messages as $message): ?>
-            <div class="dlpom-message-<?php echo esc_attr($message['type']); ?>">
-                <?php echo wp_kses_post($message['message']); ?>
-            </div>
-        <?php endforeach; ?>
+        <hr>
         <form method="post" action="options.php">
             <?php
             settings_fields('dlpom_settings_group');
@@ -164,9 +164,15 @@ function dlpom_render_settings_page() {
             submit_button('Update Configuration');
             ?>
         </form>
+        <?php foreach ($dlpom_messages as $message): ?>
+            <div class="dlpom-message-<?php echo esc_attr($message['type']); ?>">
+                <?php echo wp_kses_post($message['message']); ?>
+            </div>
+        <?php endforeach; ?>
+        <hr><br><br>
         <button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button>
         <div id="dlpom-update-status"></div>
-        
+
         <div id="dlpom-progress-container">
             <div id="dlpom-progress-bar" style="width: 0; background-color: #4caf50; color: white; text-align: center;">100%</div>
         </div>
@@ -188,7 +194,7 @@ function dlpom_register_settings() {
 
     add_settings_section(
         'dlpom_settings_section',
-        'Menu Item and Number of Posts',
+        'Configuration',
         'dlpom_settings_section_callback',
         'dlpom'
     );
