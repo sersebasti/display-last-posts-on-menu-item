@@ -10,6 +10,7 @@ License: GPL2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
+
 // Initialize a global variable to store messages
 global $dlpom_messages;
 $dlpom_messages = [];
@@ -46,8 +47,11 @@ function dlpom_check_menu_item() {
     // Check if the JSON file exists
     if (file_exists($json_file_path)) {
         // Read the JSON file
-        $json_content = file_get_contents($json_file_path);
+        $json_content = dlpom_read_json_file($json_file_path);
         $menu_data = json_decode($json_content, true);
+
+
+    
 
         // Check if JSON decoding was successful and required fields are present
         if ($menu_data && isset($menu_data['menu_name']) && isset($menu_data['menu_item_name']) && isset($menu_data['post_count'])) {
@@ -233,7 +237,7 @@ function dlpom_menu_id_callback() {
     $selected_menu = get_option('dlpom_menu_id');
     ?>
     <select id="dlpom_menu_id" name="dlpom_menu_id">
-        <option value=""><?php _e('Select a menu', 'dlpom'); ?></option>
+        <option value=""><?php esc_html_e('Select a menu', 'dlpom'); ?></option>
         <?php foreach ($menus as $menu): ?>
             <option value="<?php echo esc_attr($menu->term_id); ?>" <?php selected($selected_menu, $menu->term_id); ?>>
                 <?php echo esc_html($menu->name); ?>
@@ -248,7 +252,7 @@ function dlpom_menu_item_id_callback() {
     $selected_menu_item = get_option('dlpom_menu_item_id');
     ?>
     <select id="dlpom_menu_item_id" name="dlpom_menu_item_id" <?php if (!$selected_menu) echo 'disabled'; ?>>
-        <option value=""><?php _e('Select a menu item', 'dlpom'); ?></option>
+        <option value=""><?php esc_html_e('Select a menu item', 'dlpom'); ?></option>
         <?php
         if ($selected_menu) {
             $menu_items = wp_get_nav_menu_items($selected_menu);
@@ -273,8 +277,8 @@ function dlpom_number_of_posts_callback() {
     ?>
     <select id="dlpom_number_of_posts" name="dlpom_number_of_posts">
         <?php for ($i = 1; $i <= $total_posts; $i++): ?>
-            <option value="<?php echo $i; ?>" <?php selected($number_of_posts, $i); ?>>
-                <?php echo $i; ?>
+            <option value="<?php echo esc_attr($i); ?>" <?php selected($number_of_posts, $i); ?>>
+                <?php echo esc_html($i); ?>
             </option>
         <?php endfor; ?>
     </select>
@@ -313,6 +317,20 @@ function dlpom_update_json() {
         return;
     }
 
+    $filesystem_initialized = dlpom_initialize_filesystem();
+    if ( is_wp_error($filesystem_initialized) ) {
+        return false;
+    }
+
+    global $wp_filesystem;
+
+    $filesystem_initialized = dlpom_initialize_filesystem();
+    if ( is_wp_error($filesystem_initialized) ) {
+        return false;
+    }
+
+    global $wp_filesystem;
+
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Unauthorized user');
     }
@@ -337,16 +355,16 @@ function dlpom_update_json() {
 
         $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
 
-        if (!is_writable(dirname($json_file_path))) {
+        if (! $wp_filesystem->is_writable(dirname($json_file_path))) {
             wp_send_json_error('Directory is not writable: ' . dirname($json_file_path));
         }
 
-        if (file_exists($json_file_path) && !is_writable($json_file_path)) {
+        if (file_exists($json_file_path) && ! $wp_filesystem->is_writable($json_file_path)) {
             wp_send_json_error('File is not writable: ' . $json_file_path);
         }
 
         // Scrive nel file JSON
-        if (file_put_contents($json_file_path, json_encode($json_data))) {
+        if ($wp_filesystem->put_contents($json_file_path, wp_json_encode($json_data))) {
             dlpom_check_menu_item(); // Re-run the JSON check function
             wp_send_json_success([
                 'message' => 'Configuration updated successfully.',
@@ -379,7 +397,7 @@ function dlpom_check_menu_items() {
         wp_send_json_error('No configuration file found.');
     }
 
-    $json_content = file_get_contents($json_file_path);
+    $json_content = dlpom_read_json_file($json_file_path);
     $menu_data = json_decode($json_content, true);
 
     // Check if JSON decoding was successful and required fields are present
@@ -445,7 +463,7 @@ function dlpom_check() {
         wp_send_json_error('No configuration file found.');
     }
 
-    $json_content = file_get_contents($json_file_path);
+    $json_content = dlpom_read_json_file($json_file_path);
     $menu_data = json_decode($json_content, true);
 
     // Check if JSON decoding was successful and required fields are present
@@ -512,7 +530,7 @@ function dlpom_check() {
     $R['current_child_items'] = $current_child_items;
     $R['recent_posts'] = $recent_posts;
 
-    wp_send_json_success(json_encode($R));
+    wp_send_json_success(wp_json_encode($R));
 }
 
 
@@ -535,7 +553,7 @@ function dlpom_get_child_items() {
         wp_send_json_error('No configuration file found.');
     }
 
-    $json_content = file_get_contents($json_file_path);
+    $json_content = dlpom_read_json_file($json_file_path);
     $menu_data = json_decode($json_content, true);
 
     // Check if JSON decoding was successful and required fields are present
@@ -578,7 +596,7 @@ function dlpom_get_child_items() {
         }
     }
     
-    wp_send_json_success(json_encode($current_child_items));
+    wp_send_json_success(wp_json_encode($current_child_items));
 
 }
 
@@ -674,3 +692,38 @@ function dlpom_add_post_to_menu() {
     wp_send_json_success('Post added to menu successfully.');
 }
 
+// Function to read JSON file content
+function dlpom_read_json_file($file_path) {
+    if (!file_exists($file_path)) {
+        return false;
+    }
+
+    $filesystem_initialized = dlpom_initialize_filesystem();
+    if ( is_wp_error($filesystem_initialized) ) {
+        return false;
+    }
+
+    global $wp_filesystem;
+
+    $content = $wp_filesystem->get_contents($file_path);
+    if ($content === false) {
+        return false;
+    }
+
+    return $content;
+}
+
+
+function dlpom_initialize_filesystem() {
+    if ( ! function_exists('WP_Filesystem') ) {
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+    }
+
+    global $wp_filesystem;
+
+    if ( ! WP_Filesystem() ) {
+        return new WP_Error('filesystem_not_initialized', __('Filesystem initialization failed.'));
+    }
+
+    return true;
+}
