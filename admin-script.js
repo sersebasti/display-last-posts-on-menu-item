@@ -1,3 +1,89 @@
+(function($) {
+
+async function addPostToMenu(postData) {
+    return new Promise((resolve, reject) => {
+        $.post(ajaxurl, postData, function(response) {
+            if (response.success) {
+                resolve(response);
+            } else {
+                reject(response);
+            }
+        });
+    });
+}
+
+async function processPosts(recentPosts, menuId, parentMenuItemId, totalItems, itemsProcessed) {
+
+    console.log(itemsProcessed);
+
+
+    for (const item of recentPosts) {
+        const postData = {
+            action: 'dlpom_add_post_to_menu',
+            post_id: item.ID,
+            menu_id: menuId,
+            parent_menu_item_id: parentMenuItemId
+        };
+
+        try {
+            const response = await addPostToMenu(postData);
+            console.log(response);
+
+            $('#dlpom-update-status').append('<p>Added post with ID: ' + item.ID + '</p>');
+            itemsProcessed++;
+            const progress = (itemsProcessed / totalItems) * 100;
+            $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
+        } catch (error) {
+            console.error("Error adding post with ID: " + item.ID, error);
+            alert("Error adding post with ID: " + item.ID);
+        }
+    }
+    console.log('All posts processed.');
+}
+
+// Function to make an asynchronous Ajax call to delete a single item
+async function deleteSingleItem(itemID) {
+    return new Promise((resolve, reject) => {
+        $.post(ajaxurl, {
+                action: 'dlpom_delete_single_item',
+                item_id: itemID
+        }, function(response) {
+        if (response.success) {
+            resolve(response);
+        } else {
+            reject(response);
+        }
+        });
+    });
+}
+
+async function processDeletion(currentChildItems, totalItems, callback) {
+    let itemsProcessed = 0;
+
+    // Clear the update status element
+    $('#dlpom-update-status').empty();
+
+    for (const item of currentChildItems) {
+        try {
+            const response = await deleteSingleItem(item.ID);
+            console.log(response);
+
+            $('#dlpom-update-status').append('<p>Removed item ID: ' + item.ID + '</p>');
+            itemsProcessed++;
+            const progress = (itemsProcessed / totalItems) * 100;
+            $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
+
+        } catch (error) {
+            console.error("Error removing item with ID: " + item.ID, error);
+            alert("Error removing item with ID: " + item.ID + ". Error: " + JSON.stringify(error));
+        }
+    }
+
+    console.log('All items processed.');
+    callback(itemsProcessed);
+}
+
+
 jQuery(document).ready(function($) {
     // Check if we're on the plugin page
     if (window.location.href.indexOf('page=dlpom') !== -1) {
@@ -19,6 +105,8 @@ jQuery(document).ready(function($) {
         });
 
         $('#dlpom-update-menu').click(function() {
+            $('#dlpom-update-status').empty();
+
             var data = {
                 'action': 'dlpom_check'
             };
@@ -30,38 +118,20 @@ jQuery(document).ready(function($) {
                     const obj = JSON.parse(response.data);
 
                     console.log(obj.menu_name);
+                    console.log(obj.menu_id);
                     console.log(obj.menu_item_name);
+                    console.log(obj.menu_item_id);
                     console.log(obj.current_child_items);
                     console.log(obj.recent_posts);
                     
                     if(!compareArrays(obj.current_child_items,obj.recent_posts)){
                         
-                        var itemsProcessed = 0;
-                        var totalItems = obj.current_child_items.length + obj.recent_posts.length;
-                        var progress = (itemsProcessed / totalItems) * 100;
-                        $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
+                        const totalItems = obj.current_child_items.length + obj.recent_posts.length;
 
-                        obj.current_child_items.forEach(function(itemId) {
-                            console.log(itemId.ID);
-                            
-                            $.post(ajaxurl, {
-                                'action': 'dlpom_delete_single_item',
-                                'item_id': itemId.ID
-                            }, function(response) {
-                                if (response.success) {             
-                                    $('#dlpom-update-status').append('<p>Removed item ID: ' + itemId.ID + '</p>');
-                                    itemsProcessed++;
-                                    progress = (itemsProcessed / totalItems) * 100;
-                                    $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
-
-                                } else {
-                                    alert("err rimosso: " + itemId.ID);
-                                }
-                            });
-                            
+                        processDeletion(obj.current_child_items, totalItems, function(itemsProcessed) {
+                            // This code will run after processDeletion is complete
+                            processPosts(obj.recent_posts, obj.menu_id, obj.menu_item_id, totalItems, itemsProcessed);
                         });
-
-
 
                     }
                     else{
@@ -201,3 +271,5 @@ function compareArrays(array1, array2) {
 
     return true;
 }
+
+})(jQuery); 

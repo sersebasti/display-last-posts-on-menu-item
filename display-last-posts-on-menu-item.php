@@ -498,41 +498,17 @@ function dlpom_check() {
     // Get the latest posts
     $recent_posts = wp_get_recent_posts([
         'numberposts' => $number_of_posts,
-        'post_status' => 'publish'
+        'post_status' => 'publish',
+        'orderby' => 'post_date',
+        'order' => 'DESC'
     ]);
     
-    /*
-    // Prepare the message with the current child items and the posts to be added
-    $message = "The menu item '{$menu_item_name}' of the menu '{$menu_name}' will have the following items removed:<br><ul>";
-    foreach ($current_child_items as $child_title) {
-        $message .= "<li>" . esc_html($child_title) . "</li>";
-    }
-    $message .= "</ul>";
-
-
-
-    if (empty($current_child_items)) {
-        $message .= "<p>No items to remove.</p>";
-    }
-
-    $message .= "The menu item '{$menu_item_name}' will be updated with the following posts:<br><ul>";
-    foreach ($recent_posts as $post) {
-        $message .= "<li>" . esc_html($post['post_title']) . "</li>";
-    }
-    $message .= "</ul>";
-    */
-
     $R['menu_name'] = $menu_name;
+    $R['menu_id'] = $menu->term_id;
     $R['menu_item_name'] = $menu_item_name;
-    //$R['menu_items'] = $menu_items;
+    $R['menu_item_id'] = $menu_item_id;
     $R['current_child_items'] = $current_child_items;
-    //$R['current_child_items_ids'] = $current_child_items_ids;
-    //$R['current_child_items_type'] = $current_child_items_type;
     $R['recent_posts'] = $recent_posts;
-
-
-
-    
 
     wp_send_json_success(json_encode($R));
 }
@@ -648,3 +624,51 @@ function dlpom_delete_item_and_subitems($item_id) {
     // Delete the item itself
     wp_delete_post($item_id, true); // True ensures the item is permanently deleted
 }
+
+add_action('wp_ajax_dlpom_add_post_to_menu', 'dlpom_add_post_to_menu');
+
+function dlpom_add_post_to_menu() {
+    // Check user permissions
+    if (!current_user_can('edit_theme_options')) {
+        wp_send_json_error('You do not have permission to edit menus.');
+    }
+
+
+
+    // Validate and sanitize input
+    $post_id = intval($_POST['post_id']);
+    $menu_id = sanitize_text_field($_POST['menu_id']);
+    $parent_menu_item_id = intval($_POST['parent_menu_item_id']);
+    
+
+    // Validate post ID and menu ID
+    if (!$post_id || !$menu_id || !$parent_menu_item_id) {
+        wp_send_json_error('Invalid post ID or menu ID.');
+    }
+
+    // Get post details
+    $post = get_post($post_id);
+    if (!$post) {
+        wp_send_json_error('Invalid post ID.');
+    }
+
+    // Add the post to the menu
+    $menu_item_data = array(
+        'menu-item-object-id' => $post_id,
+        'menu-item-object' => 'post',
+        'menu-item-type' => 'post_type',
+        'menu-item-status' => 'publish',
+        'menu-item-title' => $post->post_title,
+        'menu-item-url' => get_permalink($post_id),
+        'menu-item-parent-id' => $parent_menu_item_id
+    );
+
+    $new_menu_item_id = wp_update_nav_menu_item($menu_id, 0, $menu_item_data);
+
+    if (is_wp_error($new_menu_item_id)) {
+        wp_send_json_error('Failed to add post to menu.');
+    }
+
+    wp_send_json_success('Post added to menu successfully.');
+}
+
