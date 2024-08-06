@@ -282,8 +282,7 @@ function dlpom_get_menu_items() {
     if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
         return;
     }
-    //wp_send_json_success("vai");
-    
+ 
     $menu_id = intval($_POST['menu_id']);
     $menu_items = wp_get_nav_menu_items($menu_id);
 
@@ -316,7 +315,6 @@ function dlpom_update_json() {
     $menu_item_id = intval($_POST['menu_item_id']);
     $number_of_posts = intval($_POST['number_of_posts']);
 
-    // Verifica che un elemento del menu sia stato selezionato
     if ($menu_item_id == 0) {
         wp_send_json_error('No menu item selected.');
     }
@@ -333,12 +331,10 @@ function dlpom_update_json() {
 
         $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
 
-        // Verifica che la directory sia scrivibile
         if (!is_writable(dirname($json_file_path))) {
             wp_send_json_error('Directory is not writable: ' . dirname($json_file_path));
         }
 
-        // Verifica che il file sia scrivibile o che possa essere creato
         if (file_exists($json_file_path) && !is_writable($json_file_path)) {
             wp_send_json_error('File is not writable: ' . $json_file_path);
         }
