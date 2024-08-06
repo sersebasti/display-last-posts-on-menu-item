@@ -165,15 +165,11 @@ function dlpom_render_settings_page() {
             ?>
         </form>
         <button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button>
-        <div id="dlpom-menu-items"></div>
+        <div id="dlpom-update-status"></div>
         
-        <br>
-        <button id="dlpom-delete-items" class="button button-primary">Delete Items</button>
-
         <div id="dlpom-progress-container">
             <div id="dlpom-progress-bar" style="width: 0; background-color: #4caf50; color: white; text-align: center;">100%</div>
         </div>
-        <div id="dlpom-menu-items"></div>
     
     </div>
     <?php
@@ -428,9 +424,9 @@ function dlpom_check_menu_items() {
     }
 }
 
-add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
+add_action('wp_ajax_dlpom_check', 'dlpom_check');
 
-function dlpom_update_menu() {
+function dlpom_check() {
     if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
         return;
     }
@@ -454,6 +450,7 @@ function dlpom_update_menu() {
     if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name']) || !isset($menu_data['post_count'])) {
         wp_send_json_error('Invalid JSON structure.');
     }
+    
 
     // Get menu, menu item name, and post count from JSON
     $menu_name = $menu_data['menu_name'];
@@ -484,22 +481,35 @@ function dlpom_update_menu() {
     // Retrieve the child items of the selected menu item
     foreach ($menu_items as $item) {
         if ($item->menu_item_parent == $menu_item_id) {
-            $current_child_items[] = $item->title;
+            
+            $current_child_items[] = [
+                'title' => $item->title,
+                'type' => $item->type,
+                'object' => $item->object,
+                'ID' => $item->ID
+            ];
+
+
         }
     }
+
+    
 
     // Get the latest posts
     $recent_posts = wp_get_recent_posts([
         'numberposts' => $number_of_posts,
         'post_status' => 'publish'
     ]);
-
+    
+    /*
     // Prepare the message with the current child items and the posts to be added
     $message = "The menu item '{$menu_item_name}' of the menu '{$menu_name}' will have the following items removed:<br><ul>";
     foreach ($current_child_items as $child_title) {
         $message .= "<li>" . esc_html($child_title) . "</li>";
     }
     $message .= "</ul>";
+
+
 
     if (empty($current_child_items)) {
         $message .= "<p>No items to remove.</p>";
@@ -510,8 +520,21 @@ function dlpom_update_menu() {
         $message .= "<li>" . esc_html($post['post_title']) . "</li>";
     }
     $message .= "</ul>";
+    */
 
-    wp_send_json_success($message);
+    $R['menu_name'] = $menu_name;
+    $R['menu_item_name'] = $menu_item_name;
+    //$R['menu_items'] = $menu_items;
+    $R['current_child_items'] = $current_child_items;
+    //$R['current_child_items_ids'] = $current_child_items_ids;
+    //$R['current_child_items_type'] = $current_child_items_type;
+    $R['recent_posts'] = $recent_posts;
+
+
+
+    
+
+    wp_send_json_success(json_encode($R));
 }
 
 
@@ -576,16 +599,6 @@ function dlpom_get_child_items() {
             $current_child_items[] = $item->ID; // Store the IDs of the child items
         }
     }
-    
-    // Remove the child items from the menu by updating their parent to 0 (unassigning them from any menu)
-    /*
-    foreach ($current_child_items as $child_item_id) {
-        wp_update_nav_menu_item($menu->term_id, $child_item_id, [
-            'menu-item-parent-id' => 0,
-            'menu-item-status' => 'draft' // Optional: Set status to draft if you want to hide them from the front end
-        ]);
-    } 
-    */
     
     wp_send_json_success(json_encode($current_child_items));
 
