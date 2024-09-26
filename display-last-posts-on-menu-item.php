@@ -6,6 +6,7 @@ Description: A plugin to display the latest posts in a specific menu item, helpi
 Version: 1.0.0
 Author: Sergio Sebastiani
 Author URI: https://sersebasti.ddns.net/CV
+Author Email: ser.sebastiani@gmail.com
 License: GPL2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
