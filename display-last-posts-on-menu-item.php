@@ -3,7 +3,7 @@
 Plugin Name: Display Last Posts on Menu Item
 Plugin URI: https://sersebasti.ddns.net/wp_plugins/display-last-posts-on-menu-item/
 Description: A plugin to display the latest posts in a specific menu item, helping to dynamically update the menu with recent content.
-Version: 1.0.0
+Version: 1.0.1
 Author: Sergio Sebastiani
 Author URI: https://sersebasti.ddns.net/CV
 Author Email: ser.sebastiani@gmail.com
