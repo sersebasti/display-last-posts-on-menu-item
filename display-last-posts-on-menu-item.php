@@ -258,6 +258,8 @@ function dlpom_menu_id_callback() {
     <?php
 }
 
+
+
 function dlpom_menu_item_id_callback() {
     $selected_menu = get_option('dlpom_menu_id');
     $selected_menu_item = get_option('dlpom_menu_item_id');
@@ -267,13 +269,15 @@ function dlpom_menu_item_id_callback() {
         <?php
         if ($selected_menu) {
             $menu_items = wp_get_nav_menu_items($selected_menu);
-            foreach ($menu_items as $item) {
-                if ($item->menu_item_parent == 0) { // Only show top-level items
-                    ?>
-                    <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($selected_menu_item, $item->ID); ?>>
-                        <?php echo esc_html($item->title); ?>
-                    </option>
-                    <?php
+            if ($menu_items) {
+                foreach ($menu_items as $item) {
+                    if ($item->menu_item_parent == 0) { // Only show top-level items
+                        ?>
+                        <option value="<?php echo esc_attr($item->ID); ?>" <?php selected($selected_menu_item, $item->ID); ?>>
+                            <?php echo esc_html($item->title); ?>
+                        </option>
+                        <?php
+                    }
                 }
             }
         }
@@ -287,7 +291,7 @@ function dlpom_number_of_posts_callback() {
     $total_posts = wp_count_posts()->publish;
     ?>
     <select id="dlpom_number_of_posts" name="dlpom_number_of_posts">
-        <?php for ($i = 1; $i <= $total_posts; $i++): ?>
+        <?php for ($i = 1; $i <= intval($total_posts); $i++): ?>
             <option value="<?php echo esc_attr($i); ?>" <?php selected($number_of_posts, $i); ?>>
                 <?php echo esc_html($i); ?>
             </option>
@@ -295,7 +299,6 @@ function dlpom_number_of_posts_callback() {
     </select>
     <?php
 }
-
 
 add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
 
@@ -308,17 +311,20 @@ function dlpom_get_menu_items() {
     $menu_items = wp_get_nav_menu_items($menu_id);
 
     if ($menu_items) {
-        $options = '<option value="">' . __('Select a menu item', 'dlpom') . '</option>';
+        $options = '<option value="">' . esc_html__('Select a menu item', 'dlpom') . '</option>';
         foreach ($menu_items as $item) {
             if ($item->menu_item_parent == 0) { // Only show top-level items
-                $options .= sprintf('<option value="%s">%s</option>', esc_attr($item->ID), esc_html($item->title));
+                $options .= sprintf(
+                    '<option value="%s">%s</option>',
+                    esc_attr($item->ID),
+                    esc_html($item->title)
+                );
             }
         }
         wp_send_json_success($options);
     } else {
-        wp_send_json_error('No items found');
+        wp_send_json_error(esc_html__('No items found', 'dlpom'));
     }
-      
 }
 
 add_action('wp_ajax_dlpom_update_json', 'dlpom_update_json');
@@ -397,7 +403,7 @@ function dlpom_check_menu_items() {
     }
 
     if (!current_user_can('manage_options')) {
-        wp_send_json_error('Unauthorized user');
+        wp_send_json_error(esc_html__('Unauthorized user', 'dlpom'));
     }
 
     // Path to the JSON file
@@ -405,7 +411,7 @@ function dlpom_check_menu_items() {
 
     // Check if the JSON file exists and read the content
     if (!file_exists($json_file_path)) {
-        wp_send_json_error('No configuration file found.');
+        wp_send_json_error(esc_html__('No configuration file found', 'dlpom'));
     }
 
     $json_content = dlpom_read_json_file($json_file_path);
@@ -413,17 +419,17 @@ function dlpom_check_menu_items() {
 
     // Check if JSON decoding was successful and required fields are present
     if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name'])) {
-        wp_send_json_error('Invalid JSON structure.');
+        wp_send_json_error(esc_html__('Invalid JSON structure', 'dlpom'));
     }
 
     // Get menu and menu item name from JSON
-    $menu_name = $menu_data['menu_name'];
-    $menu_item_name = $menu_data['menu_item_name'];
+    $menu_name = esc_html($menu_data['menu_name']);
+    $menu_item_name = esc_html($menu_data['menu_item_name']);
 
     // Get the menu object
     $menu = wp_get_nav_menu_object($menu_name);
     if (!$menu) {
-        wp_send_json_error('Menu not found.');
+        wp_send_json_error(esc_html__('Menu not found', 'dlpom'));
     }
 
     // Get the menu item
@@ -435,25 +441,26 @@ function dlpom_check_menu_items() {
         if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
             $menu_item_id = $item->ID;
         } elseif ($item->menu_item_parent == $menu_item_id) {
-            $child_items[] = $item->title;
+            $child_items[] = esc_html($item->title);
         }
     }
 
     if ($menu_item_id == 0) {
-        wp_send_json_error('Menu item not found.');
+        wp_send_json_error(esc_html__('Menu item not found', 'dlpom'));
     }
 
     if (empty($child_items)) {
-        wp_send_json_success('No child items found.');
+        wp_send_json_success(esc_html__('No child items found', 'dlpom'));
     } else {
         $child_items_list = '<ul>';
         foreach ($child_items as $child) {
-            $child_items_list .= '<li>' . esc_html($child) . '</li>';
+            $child_items_list .= '<li>' . $child . '</li>';
         }
         $child_items_list .= '</ul>';
         wp_send_json_success($child_items_list);
     }
 }
+
 
 add_action('wp_ajax_dlpom_check', 'dlpom_check');
 
