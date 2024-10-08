@@ -34,7 +34,6 @@ function dlpom_enqueue_admin_assets($hook) {
 // Hook the function to WordPress admin initialization
 add_action('admin_init', 'dlpom_check_menu_item');
 
-// Function to check the JSON file and validate the menu, menu item, and post count
 function dlpom_check_menu_item() {
     if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
         return;
@@ -50,9 +49,6 @@ function dlpom_check_menu_item() {
         // Read the JSON file
         $json_content = dlpom_read_json_file($json_file_path);
         $menu_data = json_decode($json_content, true);
-
-
-    
 
         // Check if JSON decoding was successful and required fields are present
         if ($menu_data && isset($menu_data['menu_name']) && isset($menu_data['menu_item_name']) && isset($menu_data['post_count'])) {
@@ -98,48 +94,60 @@ function dlpom_check_menu_item() {
                         // Invalid post count
                         $dlpom_messages[] = [
                             'type' => 'error',
-                            'message' => 'Configuration Error - Update Configuration. ' .
-                                         'Invalid post count. It should be between 1 and ' . $total_posts . '. ' .
-                                         'Menu: ' . esc_html($menu_name) . ', ' .
-                                         'Menu Item: ' . esc_html($menu_item_name) . ', ' .
-                                         'Number of Posts: ' . esc_html($post_count)
+                            'message' => wp_kses_post(
+                                sprintf(
+                                    /* translators: 1: total posts, 2: menu name, 3: menu item name, 4: post count */
+                                    __('Configuration Error - Update Configuration. Invalid post count. It should be between 1 and %1$d. Menu: %2$s, Menu Item: %3$s, Number of Posts: %4$d', 'dlpom'),
+                                    intval($total_posts),
+                                    esc_html($menu_name),
+                                    esc_html($menu_item_name),
+                                    intval($post_count)
+                                )
+                            )
                         ];
                     }
                 } else {
                     // Menu item does not exist
                     $dlpom_messages[] = [
                         'type' => 'error',
-                        'message' => 'Configuration Error - Update Configuration. ' .
-                                     'The menu item does not exist. ' .
-                                     'Menu: ' . esc_html($menu_name) . ', ' .
-                                     'Menu Item: ' . esc_html($menu_item_name) . ', ' .
-                                     'Number of Posts: ' . esc_html($post_count)
+                        'message' => wp_kses_post(
+                            sprintf(
+                                /* translators: 1: menu name, 2: menu item name, 3: post count */
+                                __('Configuration Error - Update Configuration. The menu item does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'dlpom'),
+                                esc_html($menu_name),
+                                esc_html($menu_item_name),
+                                esc_html($post_count)
+                            )
+                        )
                     ];
                 }
             } else {
                 // Menu does not exist
                 $dlpom_messages[] = [
                     'type' => 'error',
-                    'message' => 'Configuration Error - Update Configuration. ' .
-                                 'The menu does not exist. ' .
-                                 'Menu: ' . esc_html($menu_name) . ', ' .
-                                 'Menu Item: ' . esc_html($menu_item_name) . ', ' .
-                                 'Number of Posts: ' . esc_html($post_count)
+                    'message' => wp_kses_post(
+                        sprintf(
+                            /* translators: 1: menu name, 2: menu item name, 3: post count */
+                            __('Configuration Error - Update Configuration. The menu does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'dlpom'),
+                            esc_html($menu_name),
+                            esc_html($menu_item_name),
+                            esc_html($post_count)
+                        )
+                    )
                 ];
             }
         } else {
             // Invalid JSON structure
             $dlpom_messages[] = [
                 'type' => 'error',
-                'message' => 'Configuration Error - Update Configuration. ' .
-                             'The JSON file structure is invalid.'
+                'message' => __('Configuration Error - Update Configuration. The JSON file structure is invalid.', 'dlpom')
             ];
         }
     } else {
         // JSON file does not exist
         $dlpom_messages[] = [
             'type' => 'error',
-            'message' => 'No Configuration - Update Configuration.'
+            'message' => __('No Configuration - Update Configuration.', 'dlpom')
         ];
     }
 }
