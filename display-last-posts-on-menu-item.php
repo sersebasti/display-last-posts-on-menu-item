@@ -85,12 +85,13 @@ function dlpom_check_menu_item() {
                         $dlpom_messages[] = [
                             'type' => 'success',
                             'message' => wp_kses_post(
-                                'The selected menu item and post count are valid.<br>' .
-                                '<ul>' .
-                                '<li>Menu: ' . esc_html($menu_name) . '</li>' .
-                                '<li>Menu Item: ' . esc_html($menu_item_name) . '</li>' .
-                                '<li>Number of Posts: ' . esc_html($post_count) . '</li>' .
-                                '</ul>'
+                                sprintf(
+                                    /* translators: 1: menu name, 2: menu item name, 3: post count */
+                                    __('The selected menu item and post count are valid.<br><ul><li>Menu: %1$s</li><li>Menu Item: %2$s</li><li>Number of Posts: %3$d</li></ul>', 'dlpom'),
+                                    esc_html($menu_name),
+                                    esc_html($menu_item_name),
+                                    esc_html($post_count)
+                                )
                             )
                         ];
                     } else {
