@@ -152,6 +152,7 @@ function dlpom_check_menu_item() {
     }
 }
 
+
 // Add settings page
 add_action('admin_menu', 'dlpom_add_settings_page');
 
