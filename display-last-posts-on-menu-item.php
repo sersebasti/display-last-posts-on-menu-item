@@ -84,7 +84,7 @@ function dlpom_check_menu_item() {
                             'message' => wp_kses_post(
                                 sprintf(
                                     /* translators: 1: menu name, 2: menu item name, 3: post count */
-                                    __('The selected menu item and post count are valid.<br><ul><li>Menu: %1$s</li><li>Menu Item: %2$s</li><li>Number of Posts: %3$d</li></ul>', 'dlpom'),
+                                    __('The selected menu item and post count are valid.<br><ul><li>Menu: %1$s</li><li>Menu Item: %2$s</li><li>Number of Posts: %3$d</li></ul>', 'display-last-posts-on-menu-item'),
                                     esc_html($menu_name),
                                     esc_html($menu_item_name),
                                     esc_html($post_count)
@@ -98,7 +98,7 @@ function dlpom_check_menu_item() {
                             'message' => wp_kses_post(
                                 sprintf(
                                     /* translators: 1: total posts, 2: menu name, 3: menu item name, 4: post count */
-                                    __('Configuration Error - Update Configuration. Invalid post count. It should be between 1 and %1$d. Menu: %2$s, Menu Item: %3$s, Number of Posts: %4$d', 'dlpom'),
+                                    __('Configuration Error - Update Configuration. Invalid post count. It should be between 1 and %1$d. Menu: %2$s, Menu Item: %3$s, Number of Posts: %4$d', 'display-last-posts-on-menu-item'),
                                     intval($total_posts),
                                     esc_html($menu_name),
                                     esc_html($menu_item_name),
@@ -114,7 +114,7 @@ function dlpom_check_menu_item() {
                         'message' => wp_kses_post(
                             sprintf(
                                 /* translators: 1: menu name, 2: menu item name, 3: post count */
-                                __('Configuration Error - Update Configuration. The menu item does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'dlpom'),
+                                __('Configuration Error - Update Configuration. The menu item does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
                                 esc_html($menu_name),
                                 esc_html($menu_item_name),
                                 esc_html($post_count)
@@ -129,7 +129,7 @@ function dlpom_check_menu_item() {
                     'message' => wp_kses_post(
                         sprintf(
                             /* translators: 1: menu name, 2: menu item name, 3: post count */
-                            __('Configuration Error - Update Configuration. The menu does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'dlpom'),
+                            __('Configuration Error - Update Configuration. The menu does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
                             esc_html($menu_name),
                             esc_html($menu_item_name),
                             esc_html($post_count)
@@ -141,14 +141,14 @@ function dlpom_check_menu_item() {
             // Invalid JSON structure
             $dlpom_messages[] = [
                 'type' => 'error',
-                'message' => __('Configuration Error - Update Configuration. The JSON file structure is invalid.', 'dlpom')
+                'message' => __('Configuration Error - Update Configuration. The JSON file structure is invalid.', 'display-last-posts-on-menu-item')
             ];
         }
     } else {
         // JSON file does not exist
         $dlpom_messages[] = [
             'type' => 'error',
-            'message' => __('No Configuration - Update Configuration.', 'dlpom')
+            'message' => __('No Configuration - Update Configuration.', 'display-last-posts-on-menu-item')
         ];
     }
 }
@@ -249,7 +249,7 @@ function dlpom_menu_id_callback() {
     $selected_menu = get_option('dlpom_menu_id');
     ?>
     <select id="dlpom_menu_id" name="dlpom_menu_id">
-        <option value=""><?php esc_html_e('Select a menu', 'dlpom'); ?></option>
+        <option value=""><?php esc_html_e('Select a menu', 'display-last-posts-on-menu-item'); ?></option>
         <?php foreach ($menus as $menu): ?>
             <option value="<?php echo esc_attr($menu->term_id); ?>" <?php selected($selected_menu, $menu->term_id); ?>>
                 <?php echo esc_html($menu->name); ?>
@@ -266,7 +266,7 @@ function dlpom_menu_item_id_callback() {
     $selected_menu_item = get_option('dlpom_menu_item_id');
     ?>
     <select id="dlpom_menu_item_id" name="dlpom_menu_item_id" <?php if (!$selected_menu) echo 'disabled'; ?>>
-        <option value=""><?php esc_html_e('Select a menu item', 'dlpom'); ?></option>
+        <option value=""><?php esc_html_e('Select a menu item', 'display-last-posts-on-menu-item'); ?></option>
         <?php
         if ($selected_menu) {
             $menu_items = wp_get_nav_menu_items($selected_menu);
@@ -312,7 +312,7 @@ function dlpom_get_menu_items() {
     $menu_items = wp_get_nav_menu_items($menu_id);
 
     if ($menu_items) {
-        $options = '<option value="">' . esc_html__('Select a menu item', 'dlpom') . '</option>';
+        $options = '<option value="">' . esc_html__('Select a menu item', 'display-last-posts-on-menu-item') . '</option>';
         foreach ($menu_items as $item) {
             if ($item->menu_item_parent == 0) { // Only show top-level items
                 $options .= sprintf(
@@ -324,7 +324,7 @@ function dlpom_get_menu_items() {
         }
         wp_send_json_success($options);
     } else {
-        wp_send_json_error(esc_html__('No items found', 'dlpom'));
+        wp_send_json_error(esc_html__('No items found', 'display-last-posts-on-menu-item'));
     }
 }
 
@@ -404,7 +404,7 @@ function dlpom_check_menu_items() {
     }
 
     if (!current_user_can('manage_options')) {
-        wp_send_json_error(esc_html__('Unauthorized user', 'dlpom'));
+        wp_send_json_error(esc_html__('Unauthorized user', 'display-last-posts-on-menu-item'));
     }
 
     // Path to the JSON file
@@ -412,7 +412,7 @@ function dlpom_check_menu_items() {
 
     // Check if the JSON file exists and read the content
     if (!file_exists($json_file_path)) {
-        wp_send_json_error(esc_html__('No configuration file found', 'dlpom'));
+        wp_send_json_error(esc_html__('No configuration file found', 'display-last-posts-on-menu-item'));
     }
 
     $json_content = dlpom_read_json_file($json_file_path);
@@ -420,7 +420,7 @@ function dlpom_check_menu_items() {
 
     // Check if JSON decoding was successful and required fields are present
     if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name'])) {
-        wp_send_json_error(esc_html__('Invalid JSON structure', 'dlpom'));
+        wp_send_json_error(esc_html__('Invalid JSON structure', 'display-last-posts-on-menu-item'));
     }
 
     // Get menu and menu item name from JSON
@@ -430,7 +430,7 @@ function dlpom_check_menu_items() {
     // Get the menu object
     $menu = wp_get_nav_menu_object($menu_name);
     if (!$menu) {
-        wp_send_json_error(esc_html__('Menu not found', 'dlpom'));
+        wp_send_json_error(esc_html__('Menu not found', 'display-last-posts-on-menu-item'));
     }
 
     // Get the menu item
@@ -447,11 +447,11 @@ function dlpom_check_menu_items() {
     }
 
     if ($menu_item_id == 0) {
-        wp_send_json_error(esc_html__('Menu item not found', 'dlpom'));
+        wp_send_json_error(esc_html__('Menu item not found', 'display-last-posts-on-menu-item'));
     }
 
     if (empty($child_items)) {
-        wp_send_json_success(esc_html__('No child items found', 'dlpom'));
+        wp_send_json_success(esc_html__('No child items found', 'display-last-posts-on-menu-item'));
     } else {
         $child_items_list = '<ul>';
         foreach ($child_items as $child) {
