@@ -3,7 +3,7 @@
 Plugin Name: Display Last Posts on Menu Item
 Plugin URI: https://sersebasti.ddns.net/wp_plugins/display-last-posts-on-menu-item/
 Description: A plugin to display the latest posts in a specific menu item, helping to dynamically update the menu with recent content.
-Version: 1.0.2
+Version: 1.0.3
 Author: Sergio Sebastiani
 Author URI: https://sersebasti.ddns.net/CV
 Author Email: ser.sebastiani@gmail.com
@@ -740,9 +740,11 @@ function dlpom_initialize_filesystem() {
 
     global $wp_filesystem;
 
-    if ( ! WP_Filesystem() ) {
-        return new WP_Error('filesystem_not_initialized', __('Filesystem initialization failed.'));
+    // Initialize the WP_Filesystem and check if it succeeded
+    if ( ! WP_Filesystem() || ! isset($wp_filesystem) ) {
+        return new WP_Error('filesystem_not_initialized', __('Filesystem initialization failed.', 'display-last-posts-on-menu-item'));
     }
 
     return true;
 }
+
