@@ -42,11 +42,10 @@ function dlpom_check_menu_item() {
     
     global $dlpom_messages;
 
-    // Path to the JSON file
-    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
+    $menu_data = get_option('dlpom_configuration');
 
     // Check if the JSON file exists
-    if (file_exists($json_file_path)) {
+    if ($menu_data) {
         // Read the JSON file
         $json_content = dlpom_read_json_file($json_file_path);
         $menu_data = json_decode($json_content, true);
