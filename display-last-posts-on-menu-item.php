@@ -36,120 +36,97 @@ function dlpom_enqueue_admin_assets($hook) {
 add_action('admin_init', 'dlpom_check_menu_item');
 
 function dlpom_check_menu_item() {
-    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
-        return;
-    }
-    
     global $dlpom_messages;
 
+    // Retrieve configuration data from the database
     $menu_data = get_option('dlpom_configuration');
 
-    // Check if the JSON file exists
-    if ($menu_data) {
-        // Read the JSON file
-        $json_content = dlpom_read_json_file($json_file_path);
-        $menu_data = json_decode($json_content, true);
-
-        // Check if JSON decoding was successful and required fields are present
-        if ($menu_data && isset($menu_data['menu_name']) && isset($menu_data['menu_item_name']) && isset($menu_data['post_count'])) {
-            // Get menu, menu item name, and post count from JSON
-            $menu_name = $menu_data['menu_name'];
-            $menu_item_name = $menu_data['menu_item_name'];
-            $post_count = intval($menu_data['post_count']);
-
-            // Get the total number of posts
-            $total_posts = wp_count_posts()->publish;
-
-            // Check if the menu exists
-            $menu = wp_get_nav_menu_object($menu_name);
-            if ($menu) {
-                // Menu exists, now check if the menu item exists
-                $menu_items = wp_get_nav_menu_items($menu->term_id);
-                $menu_item_exists = false;
-
-                foreach ($menu_items as $item) {
-                    if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
-                        $menu_item_exists = true;
-                        break;
-                    }
-                }
-
-                if ($menu_item_exists) {
-                    // Menu item exists, now check the post count
-                    if ($post_count > 0 && $post_count <= $total_posts) {
-                        // Everything is correct
-                        $dlpom_messages[] = [
-                            'type' => 'success',
-                            'message' => wp_kses_post(
-                                sprintf(
-                                    /* translators: 1: menu name, 2: menu item name, 3: post count */
-                                    __('The selected menu item and post count are valid.<br><ul><li>Menu: %1$s</li><li>Menu Item: %2$s</li><li>Number of Posts: %3$d</li></ul>', 'display-last-posts-on-menu-item'),
-                                    esc_html($menu_name),
-                                    esc_html($menu_item_name),
-                                    esc_html($post_count)
-                                )
-                            )
-                        ];
-                    } else {
-                        // Invalid post count
-                        $dlpom_messages[] = [
-                            'type' => 'error',
-                            'message' => wp_kses_post(
-                                sprintf(
-                                    /* translators: 1: total posts, 2: menu name, 3: menu item name, 4: post count */
-                                    __('Configuration Error - Update Configuration. Invalid post count. It should be between 1 and %1$d. Menu: %2$s, Menu Item: %3$s, Number of Posts: %4$d', 'display-last-posts-on-menu-item'),
-                                    intval($total_posts),
-                                    esc_html($menu_name),
-                                    esc_html($menu_item_name),
-                                    intval($post_count)
-                                )
-                            )
-                        ];
-                    }
-                } else {
-                    // Menu item does not exist
-                    $dlpom_messages[] = [
-                        'type' => 'error',
-                        'message' => wp_kses_post(
-                            sprintf(
-                                /* translators: 1: menu name, 2: menu item name, 3: post count */
-                                __('Configuration Error - Update Configuration. The menu item does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
-                                esc_html($menu_name),
-                                esc_html($menu_item_name),
-                                esc_html($post_count)
-                            )
-                        )
-                    ];
-                }
-            } else {
-                // Menu does not exist
-                $dlpom_messages[] = [
-                    'type' => 'error',
-                    'message' => wp_kses_post(
-                        sprintf(
-                            /* translators: 1: menu name, 2: menu item name, 3: post count */
-                            __('Configuration Error - Update Configuration. The menu does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
-                            esc_html($menu_name),
-                            esc_html($menu_item_name),
-                            esc_html($post_count)
-                        )
-                    )
-                ];
-            }
-        } else {
-            // Invalid JSON structure
-            $dlpom_messages[] = [
-                'type' => 'error',
-                'message' => __('Configuration Error - Update Configuration. The JSON file structure is invalid.', 'display-last-posts-on-menu-item')
-            ];
-        }
-    } else {
-        // JSON file does not exist
+    if (!$menu_data || !isset($menu_data['menu_name'], $menu_data['menu_item_name'], $menu_data['post_count'])) {
         $dlpom_messages[] = [
             'type' => 'error',
-            'message' => __('No Configuration - Update Configuration.', 'display-last-posts-on-menu-item')
+            'message' => __('No Configuration - Update Configuration. The configuration data is missing or incomplete.', 'display-last-posts-on-menu-item')
         ];
+        return;
     }
+
+    $menu_name = $menu_data['menu_name'];
+    $menu_item_name = $menu_data['menu_item_name'];
+    $post_count = intval($menu_data['post_count']);
+
+    // Get the total number of posts
+    $total_posts = wp_count_posts()->publish;
+
+    // Check if the menu exists
+    $menu = wp_get_nav_menu_object($menu_name);
+    if (!$menu) {
+        $dlpom_messages[] = [
+            'type' => 'error',
+            'message' => wp_kses_post(
+                sprintf(
+                    __('Configuration Error - Update Configuration. The menu does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
+                    esc_html($menu_name),
+                    esc_html($menu_item_name),
+                    esc_html($post_count)
+                )
+            )
+        ];
+        return;
+    }
+
+    // Check if the menu item exists
+    $menu_items = wp_get_nav_menu_items($menu->term_id);
+    $menu_item_exists = false;
+    foreach ($menu_items as $item) {
+        if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
+            $menu_item_exists = true;
+            break;
+        }
+    }
+
+    if (!$menu_item_exists) {
+        $dlpom_messages[] = [
+            'type' => 'error',
+            'message' => wp_kses_post(
+                sprintf(
+                    __('Configuration Error - Update Configuration. The menu item does not exist. Menu: %1$s, Menu Item: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
+                    esc_html($menu_name),
+                    esc_html($menu_item_name),
+                    esc_html($post_count)
+                )
+            )
+        ];
+        return;
+    }
+
+    // Check if the post count is valid
+    if ($post_count < 1 || $post_count > $total_posts) {
+        $dlpom_messages[] = [
+            'type' => 'error',
+            'message' => wp_kses_post(
+                sprintf(
+                    __('Configuration Error - Update Configuration. Invalid post count. It should be between 1 and %1$d. Menu: %2$s, Menu Item: %3$s, Number of Posts: %4$d', 'display-last-posts-on-menu-item'),
+                    intval($total_posts),
+                    esc_html($menu_name),
+                    esc_html($menu_item_name),
+                    intval($post_count)
+                )
+            )
+        ];
+        return;
+    }
+
+    // Success message if everything is valid
+    $dlpom_messages[] = [
+        'type' => 'success',
+        'message' => wp_kses_post(
+            sprintf(
+                __('The selected menu item and post count are valid.<br><ul><li>Menu: %1$s</li><li>Menu Item: %2$s</li><li>Number of Posts: %3$d</li></ul>', 'display-last-posts-on-menu-item'),
+                esc_html($menu_name),
+                esc_html($menu_item_name),
+                esc_html($post_count)
+            )
+        )
+    ];
 }
 
 
@@ -303,96 +280,48 @@ function dlpom_number_of_posts_callback() {
 add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
 
 function dlpom_get_menu_items() {
-    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
-        return;
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(esc_html__('Unauthorized user', 'display-last-posts-on-menu-item'));
     }
- 
+
     $menu_id = intval($_POST['menu_id']);
+    if (!$menu_id) {
+        wp_send_json_error(esc_html__('Invalid menu ID', 'display-last-posts-on-menu-item'));
+    }
+
     $menu_items = wp_get_nav_menu_items($menu_id);
 
     if ($menu_items) {
-        $options = '<option value="">' . esc_html__('Select a menu item', 'display-last-posts-on-menu-item') . '</option>';
+        $options = [];
         foreach ($menu_items as $item) {
             if ($item->menu_item_parent == 0) { // Only show top-level items
-                $options .= sprintf(
-                    '<option value="%s">%s</option>',
-                    esc_attr($item->ID),
-                    esc_html($item->title)
-                );
+                $options[] = [
+                    'id' => $item->ID,
+                    'title' => $item->title
+                ];
             }
         }
-        wp_send_json_success($options);
+        wp_send_json_success(['menu_items' => $options]);
     } else {
         wp_send_json_error(esc_html__('No items found', 'display-last-posts-on-menu-item'));
     }
 }
 
-add_action('wp_ajax_dlpom_update_json', 'dlpom_update_json');
 
-function dlpom_update_json() {
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Unauthorized user');
-    }
-
-    $menu_id = intval($_POST['menu_id']);
-    $menu_item_id = intval($_POST['menu_item_id']);
-    $number_of_posts = intval($_POST['number_of_posts']);
-
-    if ($menu_item_id == 0) {
-        wp_send_json_error('No menu item selected.');
-    }
-
-    $menu = wp_get_nav_menu_object($menu_id);
-    $menu_item = wp_get_nav_menu_items($menu_id, ['p' => $menu_item_id])[0];
-
-    if ($menu && $menu_item && $number_of_posts > 0) {
-        $data = [
-            'menu_name' => $menu->name,
-            'menu_item_name' => $menu_item->title,
-            'post_count' => $number_of_posts
-        ];
-
-        // Store data in the database instead of JSON file
-        update_option('dlpom_configuration', $data);
-        dlpom_check_menu_item(); // Re-run the check function with DB data
-
-        wp_send_json_success([
-            'message' => 'Configuration updated successfully.',
-            'data' => $data
-        ]);
-    } else {
-        wp_send_json_error('Invalid data provided.');
-    }
-}
 
 add_action('wp_ajax_dlpom_check_menu_items', 'dlpom_check_menu_items');
 
 function dlpom_check_menu_items() {
-    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
-        return;
-    }
-
     if (!current_user_can('manage_options')) {
         wp_send_json_error(esc_html__('Unauthorized user', 'display-last-posts-on-menu-item'));
     }
 
-    // Path to the JSON file
-    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
-
-    // Check if the JSON file exists and read the content
-    if (!file_exists($json_file_path)) {
-        wp_send_json_error(esc_html__('No configuration file found', 'display-last-posts-on-menu-item'));
-    }
-
-    $json_content = dlpom_read_json_file($json_file_path);
-    $menu_data = json_decode($json_content, true);
-
-    // Check if JSON decoding was successful and required fields are present
+    // Retrieve configuration data from the database
+    $menu_data = get_option('dlpom_configuration');
     if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name'])) {
-        wp_send_json_error(esc_html__('Invalid JSON structure', 'display-last-posts-on-menu-item'));
+        wp_send_json_error(esc_html__('Configuration data is invalid or incomplete.', 'display-last-posts-on-menu-item'));
     }
 
-    // Get menu and menu item name from JSON
     $menu_name = esc_html($menu_data['menu_name']);
     $menu_item_name = esc_html($menu_data['menu_item_name']);
 
@@ -411,7 +340,7 @@ function dlpom_check_menu_items() {
         if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
             $menu_item_id = $item->ID;
         } elseif ($item->menu_item_parent == $menu_item_id) {
-            $child_items[] = esc_html($item->title);
+            $child_items[] = $item->title;
         }
     }
 
@@ -420,106 +349,13 @@ function dlpom_check_menu_items() {
     }
 
     if (empty($child_items)) {
-        wp_send_json_success(esc_html__('No child items found', 'display-last-posts-on-menu-item'));
+        wp_send_json_success(['message' => esc_html__('No child items found', 'display-last-posts-on-menu-item')]);
     } else {
-        $child_items_list = '<ul>';
-        foreach ($child_items as $child) {
-            $child_items_list .= '<li>' . $child . '</li>';
-        }
-        $child_items_list .= '</ul>';
-        wp_send_json_success($child_items_list);
+        wp_send_json_success(['child_items' => $child_items]);
     }
 }
 
 
-add_action('wp_ajax_dlpom_check', 'dlpom_check');
-
-function dlpom_check() {
-    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
-        return;
-    }
-
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error('Unauthorized user');
-    }
-
-    // Path to the JSON file
-    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
-
-    // Check if the JSON file exists and read the content
-    if (!file_exists($json_file_path)) {
-        wp_send_json_error('No configuration file found.');
-    }
-
-    $json_content = dlpom_read_json_file($json_file_path);
-    $menu_data = json_decode($json_content, true);
-
-    // Check if JSON decoding was successful and required fields are present
-    if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name']) || !isset($menu_data['post_count'])) {
-        wp_send_json_error('Invalid JSON structure.');
-    }
-    
-
-    // Get menu, menu item name, and post count from JSON
-    $menu_name = $menu_data['menu_name'];
-    $menu_item_name = $menu_data['menu_item_name'];
-    $number_of_posts = intval($menu_data['post_count']);
-
-    // Get the menu object
-    $menu = wp_get_nav_menu_object($menu_name);
-    if (!$menu) {
-        wp_send_json_error('Menu not found.');
-    }
-
-    // Get the menu item
-    $menu_items = wp_get_nav_menu_items($menu->term_id);
-    $menu_item_id = 0;
-    $current_child_items = [];
-
-    foreach ($menu_items as $item) {
-        if ($item->title === $menu_item_name && $item->menu_item_parent == 0) { // Ensure it's a top-level item
-            $menu_item_id = $item->ID;
-        }
-    }
-
-    if ($menu_item_id == 0) {
-        wp_send_json_error('Menu item not found.');
-    }
-
-    // Retrieve the child items of the selected menu item
-    foreach ($menu_items as $item) {
-        if ($item->menu_item_parent == $menu_item_id) {
-            
-            $current_child_items[] = [
-                'title' => $item->title,
-                'type' => $item->type,
-                'object' => $item->object,
-                'ID' => $item->ID
-            ];
-
-
-        }
-    }
-
-    
-
-    // Get the latest posts
-    $recent_posts = wp_get_recent_posts([
-        'numberposts' => $number_of_posts,
-        'post_status' => 'publish',
-        'orderby' => 'post_date',
-        'order' => 'DESC'
-    ]);
-    
-    $R['menu_name'] = $menu_name;
-    $R['menu_id'] = $menu->term_id;
-    $R['menu_item_name'] = $menu_item_name;
-    $R['menu_item_id'] = $menu_item_id;
-    $R['current_child_items'] = $current_child_items;
-    $R['recent_posts'] = $recent_posts;
-
-    wp_send_json_success(wp_json_encode($R));
-}
 
 
 add_action('wp_ajax_dlpom_get_child_items', 'dlpom_get_child_items');
@@ -533,23 +369,15 @@ function dlpom_get_child_items() {
         wp_send_json_error('Unauthorized user');
     }
 
-    // Path to the JSON file
-    $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
+    // Retrieve configuration data from the database
+    $menu_data = get_option('dlpom_configuration');
 
-    // Check if the JSON file exists and read the content
-    if (!file_exists($json_file_path)) {
-        wp_send_json_error('No configuration file found.');
-    }
-
-    $json_content = dlpom_read_json_file($json_file_path);
-    $menu_data = json_decode($json_content, true);
-
-    // Check if JSON decoding was successful and required fields are present
+    // Check if the required fields are present in the configuration data
     if (!$menu_data || !isset($menu_data['menu_name']) || !isset($menu_data['menu_item_name']) || !isset($menu_data['post_count'])) {
-        wp_send_json_error('Invalid JSON structure.');
+        wp_send_json_error('Configuration data is invalid or incomplete.');
     }
 
-    // Get menu, menu item name, and post count from JSON
+    // Get menu, menu item name, and post count from the database-stored data
     $menu_name = $menu_data['menu_name'];
     $menu_item_name = $menu_data['menu_item_name'];
     $number_of_posts = intval($menu_data['post_count']);
@@ -571,11 +399,9 @@ function dlpom_get_child_items() {
         }
     }
 
-
     if ($menu_item_id == 0) {
         wp_send_json_error('Menu item not found.');
     }
-
 
     // Retrieve the child items of the selected menu item
     foreach ($menu_items as $item) {
@@ -584,8 +410,8 @@ function dlpom_get_child_items() {
         }
     }
     
-    wp_send_json_success(wp_json_encode($current_child_items));
-
+    // Send child items as JSON response
+    wp_send_json_success($current_child_items);
 }
 
 add_action('wp_ajax_dlpom_delete_single_item', 'dlpom_delete_single_item');
