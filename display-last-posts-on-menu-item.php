@@ -330,24 +330,6 @@ function dlpom_get_menu_items() {
 add_action('wp_ajax_dlpom_update_json', 'dlpom_update_json');
 
 function dlpom_update_json() {
-    if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
-        return;
-    }
-
-    $filesystem_initialized = dlpom_initialize_filesystem();
-    if ( is_wp_error($filesystem_initialized) ) {
-        return false;
-    }
-
-    global $wp_filesystem;
-
-    $filesystem_initialized = dlpom_initialize_filesystem();
-    if ( is_wp_error($filesystem_initialized) ) {
-        return false;
-    }
-
-    global $wp_filesystem;
-
     if (!current_user_can('manage_options')) {
         wp_send_json_error('Unauthorized user');
     }
@@ -364,32 +346,20 @@ function dlpom_update_json() {
     $menu_item = wp_get_nav_menu_items($menu_id, ['p' => $menu_item_id])[0];
 
     if ($menu && $menu_item && $number_of_posts > 0) {
-        $json_data = [
+        $data = [
             'menu_name' => $menu->name,
             'menu_item_name' => $menu_item->title,
             'post_count' => $number_of_posts
         ];
 
-        $json_file_path = plugin_dir_path(__FILE__) . 'selected_menu_item.json';
+        // Store data in the database instead of JSON file
+        update_option('dlpom_configuration', $data);
+        dlpom_check_menu_item(); // Re-run the check function with DB data
 
-        if (! $wp_filesystem->is_writable(dirname($json_file_path))) {
-            wp_send_json_error('Directory is not writable: ' . dirname($json_file_path));
-        }
-
-        if (file_exists($json_file_path) && ! $wp_filesystem->is_writable($json_file_path)) {
-            wp_send_json_error('File is not writable: ' . $json_file_path);
-        }
-
-        // Scrive nel file JSON
-        if ($wp_filesystem->put_contents($json_file_path, wp_json_encode($json_data))) {
-            dlpom_check_menu_item(); // Re-run the JSON check function
-            wp_send_json_success([
-                'message' => 'Configuration updated successfully.',
-                'data' => $json_data
-            ]);
-        } else {
-            wp_send_json_error('Failed to update JSON file.');
-        }
+        wp_send_json_success([
+            'message' => 'Configuration updated successfully.',
+            'data' => $data
+        ]);
     } else {
         wp_send_json_error('Invalid data provided.');
     }
