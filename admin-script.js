@@ -83,10 +83,11 @@ async function processDeletion(currentChildItems, totalItems, callback) {
     callback(itemsProcessed);
 }
 
-
 jQuery(document).ready(function($) {
     // Check if we're on the plugin page
     if (window.location.href.indexOf('page=dlpom') !== -1) {
+
+        // Changing the menu in the configuration
         $('#dlpom_menu_id').change(function() {
             var menuId = $(this).val();
             var data = {
@@ -96,150 +97,6 @@ jQuery(document).ready(function($) {
 
             $.post(ajaxurl, data, function(response) {
                 if (response.success) {
-                    console.log(response.data); // Debug: Check the response data
-
-                    // Access the menu items array within response.data
-                    const menuItems = response.data.menu_items;
-
-                    // Clear existing options and add a placeholder option
-                    $('#dlpom_menu_item_id').empty();
-                    $('#dlpom_menu_item_id').append('<option value="">Select a menu item</option>');
-
-                    // Loop through the menu items and append each as an option
-                    menuItems.forEach(function(item) {
-                        $('#dlpom_menu_item_id').append(
-                            $('<option>', {
-                                value: item.id,
-                                text: item.title
-                            })
-                        );
-                    });
-
-                    // Enable the dropdown
-                    $('#dlpom_menu_item_id').prop('disabled', false);
-                } else {
-                    alert('Error: ' + response.data);
-                }
-            });
-        });
-
-        $('#dlpom-update-menu').click(function() {
-            $('#dlpom-update-status').empty();
-
-            var data = {
-                'action': 'dlpom_check'
-            };
-
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    const obj = JSON.parse(response.data);
-
-                    console.log(obj.menu_name);
-                    console.log(obj.menu_id);
-                    console.log(obj.menu_item_name);
-                    console.log(obj.menu_item_id);
-                    console.log(obj.current_child_items);
-                    console.log(obj.recent_posts);
-                    
-                    if (!compareArrays(obj.current_child_items, obj.recent_posts)) {
-                        const totalItems = obj.current_child_items.length + obj.recent_posts.length;
-
-                        processDeletion(obj.current_child_items, totalItems, function(itemsProcessed) {
-                            processPosts(obj.recent_posts, obj.menu_id, obj.menu_item_id, totalItems, itemsProcessed);
-                        });
-                    } else {
-                        $('#dlpom-update-status').append('<p>Menu Item ' + obj.menu_item_name + ' is updated with last (' + obj.recent_posts.length + ') posts</p>');
-                    }
-                } else {
-                    alert('Error: ' + response.data);
-                }
-            });
-        });
-
-        $('form').submit(function(e) {
-            e.preventDefault();
-            var menuId = $('#dlpom_menu_id').val();
-            var menuItemId = $('#dlpom_menu_item_id').val();
-            var numPosts = $('#dlpom_number_of_posts').val();
-
-            if (menuItemId === '') {
-                alert('Please select a menu item.');
-                return;
-            }
-
-            var data = {
-                'action': 'dlpom_update_json',
-                'menu_id': menuId,
-                'menu_item_id': menuItemId,
-                'number_of_posts': numPosts
-            };
-
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    var jsonData = response.data.data;
-                    var message = response.data.message + '\n\n' +
-                                  'Menu Name: ' + jsonData.menu_name + '\n' +
-                                  'Menu Item Name: ' + jsonData.menu_item_name + '\n' +
-                                  'Post Count: ' + jsonData.post_count;
-                    alert(message);
-                    location.reload(); // Reload page after the alert is closed
-                } else {
-                    alert('Error: ' + response.data);
-                }
-            });
-        });
-
-        $('#dlpom-delete-items').click(function() {
-            var data = {
-                'action': 'dlpom_get_child_items'
-            };
-            
-            $.post(ajaxurl, data, function(response) {
-                var progress = 50;
-                $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
-
-                if (response.success) {
-                    var childItems = JSON.parse(response.data);
-                    console.log(childItems);
-                } else {
-                    alert('Error: ' + response.data);
-                }
-            });
-        });
-    }    
-});
-
-
-// Helper function to compare arrays of menu items
-function compareArrays(array1, array2) {
-    if (array1.length !== array2.length) {
-        return false;
-    }
-
-    for (let i = 0; i < array1.length; i++) {
-        const item1 = array1[i];
-        const item2 = array2[i];
-
-        if (item1.title !== item2.post_title || item1.object !== "post") {
-            return false;
-        }
-    }
-    return true;
-}
-
-jQuery(document).ready(function($) {
-    // Check if we're on the plugin page
-    if (window.location.href.indexOf('page=dlpom') !== -1) {
-        $('#dlpom_menu_id').change(function() {
-            var menuId = $(this).val();
-            var data = {
-                'action': 'dlpom_get_menu_items',
-                'menu_id': menuId
-            };
-
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    console.log("Response data:", response.data); // Debugging output
 
                     // Check if response.data is an object and contains the menu_items array
                     if (response.data && Array.isArray(response.data.menu_items)) {
@@ -272,16 +129,41 @@ jQuery(document).ready(function($) {
             });
         });
 
+        // Handle configuration update via AJAX
+        $('#dlpom-update-config').click(function(e) {
+            e.preventDefault();
+
+            var data = {
+                action: 'dlpom_update_configuration',
+                menu_id: $('#dlpom_menu_id').val(),
+                menu_item_id: $('#dlpom_menu_item_id').val(),
+                number_of_posts: $('#dlpom_number_of_posts').val(),
+            };
+
+            $.post(ajaxurl, data, function(response) {
+
+                console.log(response);
+                if (response.success) {
+                    $('#dlpom-config-status').html('<p>' + response.data + '</p>');
+                } else {
+                    $('#dlpom-config-status').html('<p>Error: ' + response.data + '</p>');
+                }
+            });
+        });
+
         $('#dlpom-update-menu').click(function() {
             $('#dlpom-update-status').empty();
 
             var data = {
-                'action': 'dlpom_check'
+                'action': 'dlpom_check_menu_items'
             };
 
+            console.log(data);
+        
             $.post(ajaxurl, data, function(response) {
                 if (response.success) {
-                    const obj = JSON.parse(response.data);
+                    console.log(response)
+                    const obj = response.data;
 
                     console.log("Menu Data:", obj);
 
@@ -302,36 +184,6 @@ jQuery(document).ready(function($) {
             });
         });
 
-        $('form').submit(function(e) {
-            e.preventDefault();
-            var menuId = $('#dlpom_menu_id').val();
-            var menuItemId = $('#dlpom_menu_item_id').val();
-            var numPosts = $('#dlpom_number_of_posts').val();
-
-            if (menuItemId === '') {
-                alert('Please select a menu item.');
-                return;
-            }
-
-            var data = {
-                'action': 'dlpom_update_json',
-                'menu_id': menuId,
-                'menu_item_id': menuItemId,
-                'number_of_posts': numPosts
-            };
-
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    var jsonData = response.data.data;
-                    var message = `${response.data.message}\n\nMenu Name: ${jsonData.menu_name}\nMenu Item Name: ${jsonData.menu_item_name}\nPost Count: ${jsonData.post_count}`;
-                    alert(message);
-                    location.reload();
-                } else {
-                    alert('Error: ' + response.data);
-                }
-            });
-        });
-
         $('#dlpom-delete-items').click(function() {
             var data = {
                 'action': 'dlpom_get_child_items'
@@ -342,7 +194,7 @@ jQuery(document).ready(function($) {
                 $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
 
                 if (response.success) {
-                    var childItems = JSON.parse(response.data);
+                    var childItems = response.data;
                     console.log("Child items:", childItems);
                 } else {
                     alert('Error: ' + response.data);
@@ -352,7 +204,7 @@ jQuery(document).ready(function($) {
     }
 });
 
-// Utility function to compare two arrays
+// Helper function to compare arrays of menu items
 function compareArrays(array1, array2) {
     if (array1.length !== array2.length) return false;
 
