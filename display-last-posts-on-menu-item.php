@@ -21,9 +21,22 @@ function dlpom_register_settings() {
     if (strpos($_SERVER['PHP_SELF'], 'display-last-posts-on-menu-item.php') !== false) {
         return;
     }
-    register_setting('dlpom_settings_group', 'dlpom_menu_id');
-    register_setting('dlpom_settings_group', 'dlpom_menu_item_id');
-    register_setting('dlpom_settings_group', 'dlpom_number_of_posts');
+    register_setting('dlpom_settings_group', 'dlpom_menu_id', 'dlpom_sanitize_menu_id');
+    register_setting('dlpom_settings_group', 'dlpom_menu_item_id', 'dlpom_sanitize_menu_item_id');
+    register_setting('dlpom_settings_group', 'dlpom_number_of_posts', 'dlpom_sanitize_number_of_posts');
+}
+
+function dlpom_sanitize_menu_id($input) {
+    return intval($input); // Ensures the value is an integer
+}
+
+function dlpom_sanitize_menu_item_id($input) {
+    return intval($input); // Ensures the value is an integer
+}
+
+function dlpom_sanitize_number_of_posts($input) {
+    $input = intval($input); // Ensures the value is an integer
+    return ($input > 0) ? $input : 1; // Validates it's a positive number, defaults to 1 if invalid
 }
 
 

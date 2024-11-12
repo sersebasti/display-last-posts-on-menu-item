@@ -1,106 +1,93 @@
 (function($) {
 
+    // Helper function to display status messages
+    function displayStatusMessage(message, isError = false) {
+        const color = isError ? 'red' : 'green';
+        $('#dlpom-update-status').html(`<p style="color: ${color};">${message}</p>`);
+    }
 
-jQuery(document).ready(function($) {
-    // Check if we're on the plugin page
-    if (window.location.href.indexOf('page=dlpom') !== -1) {
+    $(document).ready(function() {
+        // Ensure loading spinner is hidden initially
+        $('#dlpom-loading').hide();
 
-        // Changing the menu in the configuration
-        $('#dlpom_menu_id').change(function() {
-            var menuId = $(this).val();
-            var data = {
-                'action': 'dlpom_get_menu_items',  // Specify the action name
-                'menu_id': menuId,
-                'nonce': dlpomData.nonce           // Include the nonce for verification
-            };
+        // Check if we're on the plugin page
+        if (window.location.href.indexOf('page=dlpom') !== -1) {
 
-            $.post(dlpomData.ajax_url, data, function(response) {
-                if (response.success) {
+            // Change the menu in the configuration
+            $('#dlpom_menu_id').change(function() {
+                var menuId = $(this).val();
+                var data = {
+                    'action': 'dlpom_get_menu_items',
+                    'menu_id': menuId,
+                    'nonce': dlpomData.nonce
+                };
 
-                    // Check if response.data is an object and contains the menu_items array
-                    if (response.data && Array.isArray(response.data.menu_items)) {
+                $.post(dlpomData.ajax_url, data, function(response) {
+                    if (response.success && response.data && Array.isArray(response.data.menu_items)) {
                         const menuItems = response.data.menu_items;
-
-                        // Clear existing options and add a placeholder option
-                        $('#dlpom_menu_item_id').empty();
-                        $('#dlpom_menu_item_id').append('<option value="">Select a menu item</option>');
-
-                        // Populate the dropdown with menu items
+                        $('#dlpom_menu_item_id').empty().append('<option value="">Select a menu item</option>');
                         menuItems.forEach(function(item) {
                             $('#dlpom_menu_item_id').append(
-                                $('<option>', {
-                                    value: item.id,
-                                    text: item.title
-                                })
+                                $('<option>', { value: item.id, text: item.title })
                             );
                         });
-
-                        // Enable the dropdown
                         $('#dlpom_menu_item_id').prop('disabled', false);
                     } else {
-                        $('#dlpom-update-status').html('<p> error: ' + response.data + '</p>'); 
+                        displayStatusMessage('Error: ' + (response.data || 'Unexpected response format'), true);
                     }
-                } else {
-                    $('#dlpom-update-status').html('<p> error: ' + response.data + '</p>'); 
-                }
+                }).fail(function() {
+                    displayStatusMessage('Error: Could not retrieve menu items.', true);
+                });
             });
-        });
 
-        $('#dlpom-update-config').click(function(e) {
-            // Show the loading spinner
-            $('#dlpom-loading').show()
+            $('#dlpom-update-config').click(function(e) {
+                e.preventDefault();
+                $('#dlpom-loading').show();
 
-            e.preventDefault();
-        
-            var data = {
-                action: 'dlpom_update_configuration',
-                menu_id: $('#dlpom_menu_id').val(),
-                menu_item_id: $('#dlpom_menu_item_id').val(),
-                number_of_posts: $('#dlpom_number_of_posts').val(),
-                nonce: dlpomData.nonce // Add nonce for security
-            };
-        
-            // Use the localized AJAX URL from dlpomData
-            $.post(dlpomData.ajax_url, data, function(response) {
+                var data = {
+                    action: 'dlpom_update_configuration',
+                    menu_id: $('#dlpom_menu_id').val(),
+                    menu_item_id: $('#dlpom_menu_item_id').val(),
+                    number_of_posts: $('#dlpom_number_of_posts').val(),
+                    nonce: dlpomData.nonce
+                };
 
-                // Hide the loading spinner once the AJAX call is complete
-                $('#dlpom-loading').hide();
-
-                if (response.success) {
-                    $('#dlpom-update-status').html('<p>' + response.data + '</p>');
-                } else {
-                    $('#dlpom-update-status').html('<p>Error: ' + response.data + '</p>');
-                }
+                $.post(dlpomData.ajax_url, data, function(response) {
+                    $('#dlpom-loading').hide();
+                    if (response.success) {
+                        displayStatusMessage(response.data);
+                    } else {
+                        displayStatusMessage('Error: ' + (response.data || 'Failed to update configuration.'), true);
+                    }
+                }).fail(function() {
+                    $('#dlpom-loading').hide();
+                    displayStatusMessage('Error: Could not update configuration.', true);
+                });
             });
-        });
 
-        $('#dlpom-update-menu').click(function() {
-            $('#dlpom-update-status').empty();
-            
-            // Show the loading spinner
-            $('#dlpom-loading').show();
-            
-            // Data to be sent in the AJAX request
-            var data = {
-                'action': 'dlpom_update_menu',
-                'nonce': dlpomData.nonce // Include the nonce for security
-            };
-            
-            // Send AJAX request using the localized ajax URL
-            $.post(dlpomData.ajax_url, data, function(response) {
-                // Hide the loading spinner once the AJAX call is complete
-                $('#dlpom-loading').hide();
-        
-                if (response.success) {
-                    $('#dlpom-update-status').html('<p>' + response.data + '</p>');
-                } else {
-                    $('#dlpom-update-status').html('<p>Error: ' + response.data + '</p>');
-                }
+            $('#dlpom-update-menu').click(function() {
+                $('#dlpom-update-status').empty();
+                $('#dlpom-loading').show();
+
+                var data = {
+                    'action': 'dlpom_update_menu',
+                    'nonce': dlpomData.nonce
+                };
+
+                $.post(dlpomData.ajax_url, data, function(response) {
+                    $('#dlpom-loading').hide();
+                    if (response.success) {
+                        displayStatusMessage(response.data);
+                    } else {
+                        displayStatusMessage('Error: ' + (response.data || 'Failed to update menu.'), true);
+                    }
+                }).fail(function() {
+                    $('#dlpom-loading').hide();
+                    displayStatusMessage('Error: Could not update menu.', true);
+                });
             });
-        });
-        
-    }
-});
+        }
+    });
 
+})(jQuery);
 
-})(jQuery); 
