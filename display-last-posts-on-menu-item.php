@@ -34,10 +34,7 @@ function dlpom_sanitize_menu_item_id($input) {
     return intval($input); // Ensures the value is an integer
 }
 
-function dlpom_sani
-
-
-tize_number_of_posts($input) {
+function dlpom_sanitize_number_of_posts($input) {
     $input = intval($input); // Ensures the value is an integer
     return ($input > 0) ? $input : 1; // Validates it's a positive number, defaults to 1 if invalid
 }
@@ -100,7 +97,7 @@ function dlpom_render_settings_page() {
                     $total_posts = wp_count_posts()->publish; // Get the total number of posts
                     for ($i = 1; $i <= $total_posts; $i++) {
                         $is_selected = selected($selected_posts_count, $i, false);
-                        echo "<option value='$i' $is_selected>$i</option>";
+                        echo "<option value='" . esc_attr( $i ) . "' $is_selected>" . esc_html( $i ) . "</option>";
                     }
                     ?>
                 </select>
