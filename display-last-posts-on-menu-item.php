@@ -89,15 +89,13 @@ function dlpom_render_settings_page() {
                     ?>
                 </select>
         </p>
-
-        <p>
-            <button id="dlpom-update-config" class="button button-primary">Update Configuration</button>
-            <div id="dlpom-config-status"></div>
-        </p>
         
         <hr>
-        
-        <button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button>
+
+        <p><button id="dlpom-update-config" class="button button-primary">Update Configuration</button></p>
+        <hr>
+        <p><button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button></p>
+        <hr>
         <div id="dlpom-loading" style="display: none; text-align: left; margin-top: 20px;">
             <img src="<?php echo plugins_url( 'loading.gif', __FILE__ ); ?>" alt="Loading..." style="width: 200px; height: 200px;">
             <p>Processing, please wait. This may take a few minutes depending on the number of posts.</p>

@@ -1,87 +1,5 @@
 (function($) {
 
-async function addPostToMenu(postData) {
-    return new Promise((resolve, reject) => {
-        $.post(ajaxurl, postData, function(response) {
-            if (response.success) {
-                resolve(response);
-            } else {
-                reject(response);
-            }
-        });
-    });
-}
-
-async function processPosts(recentPosts, menuId, parentMenuItemId, totalItems, itemsProcessed) {
-
-    console.log(itemsProcessed);
-
-
-    for (const item of recentPosts) {
-        const postData = {
-            action: 'dlpom_add_post_to_menu',
-            post_id: item.ID,
-            menu_id: menuId,
-            parent_menu_item_id: parentMenuItemId
-        };
-
-        try {
-            const response = await addPostToMenu(postData);
-            console.log(response);
-
-            $('#dlpom-update-status').append('<p>Added post with ID: ' + item.ID + '</p>');
-            itemsProcessed++;
-            const progress = (itemsProcessed / totalItems) * 100;
-            $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
-        } catch (error) {
-            console.error("Error adding post with ID: " + item.ID, error);
-            alert("Error adding post with ID: " + item.ID);
-        }
-    }
-    console.log('All posts processed.');
-}
-
-// Function to make an asynchronous Ajax call to delete a single item
-async function deleteSingleItem(itemID) {
-    return new Promise((resolve, reject) => {
-        $.post(ajaxurl, {
-                action: 'dlpom_delete_single_item',
-                item_id: itemID
-        }, function(response) {
-        if (response.success) {
-            resolve(response);
-        } else {
-            reject(response);
-        }
-        });
-    });
-}
-
-async function processDeletion(currentChildItems, totalItems, callback) {
-    let itemsProcessed = 0;
-
-    // Clear the update status element
-    $('#dlpom-update-status').empty();
-
-    for (const item of currentChildItems) {
-        try {
-            const response = await deleteSingleItem(item.ID);
-            console.log(response);
-
-            $('#dlpom-update-status').append('<p>Removed item ID: ' + item.ID + '</p>');
-            itemsProcessed++;
-            const progress = (itemsProcessed / totalItems) * 100;
-            $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
-
-        } catch (error) {
-            console.error("Error removing item with ID: " + item.ID, error);
-            alert("Error removing item with ID: " + item.ID + ". Error: " + JSON.stringify(error));
-        }
-    }
-
-    console.log('All items processed.');
-    callback(itemsProcessed);
-}
 
 jQuery(document).ready(function($) {
     // Check if we're on the plugin page
@@ -120,17 +38,18 @@ jQuery(document).ready(function($) {
                         // Enable the dropdown
                         $('#dlpom_menu_item_id').prop('disabled', false);
                     } else {
-                        // Handle unexpected response format
-                        alert('Unexpected response format. Expected an object with a menu_items array.');
-                        console.error('Expected an object with a menu_items array, but got:', response.data);
+                        $('#dlpom-update-status').html('<p> error: ' + response.data + '</p>'); 
                     }
                 } else {
-                    alert('Error: ' + response.data);
+                    $('#dlpom-update-status').html('<p> error: ' + response.data + '</p>'); 
                 }
             });
         });
 
         $('#dlpom-update-config').click(function(e) {
+            // Show the loading spinner
+            $('#dlpom-loading').show()
+
             e.preventDefault();
         
             var data = {
@@ -143,11 +62,14 @@ jQuery(document).ready(function($) {
         
             // Use the localized AJAX URL from dlpomData
             $.post(dlpomData.ajax_url, data, function(response) {
-                console.log(response);
+
+                // Hide the loading spinner once the AJAX call is complete
+                $('#dlpom-loading').hide();
+
                 if (response.success) {
-                    $('#dlpom-config-status').html('<p>' + response.data + '</p>');
+                    $('#dlpom-update-status').html('<p>' + response.data + '</p>');
                 } else {
-                    $('#dlpom-config-status').html('<p>Error: ' + response.data + '</p>');
+                    $('#dlpom-update-status').html('<p>Error: ' + response.data + '</p>');
                 }
             });
         });
