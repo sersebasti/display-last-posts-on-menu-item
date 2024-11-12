@@ -91,11 +91,12 @@ jQuery(document).ready(function($) {
         $('#dlpom_menu_id').change(function() {
             var menuId = $(this).val();
             var data = {
-                'action': 'dlpom_get_menu_items',
-                'menu_id': menuId
+                'action': 'dlpom_get_menu_items',  // Specify the action name
+                'menu_id': menuId,
+                'nonce': dlpomData.nonce           // Include the nonce for verification
             };
 
-            $.post(ajaxurl, data, function(response) {
+            $.post(dlpomData.ajax_url, data, function(response) {
                 if (response.success) {
 
                     // Check if response.data is an object and contains the menu_items array
@@ -129,19 +130,19 @@ jQuery(document).ready(function($) {
             });
         });
 
-        // Handle configuration update via AJAX
         $('#dlpom-update-config').click(function(e) {
             e.preventDefault();
-
+        
             var data = {
                 action: 'dlpom_update_configuration',
                 menu_id: $('#dlpom_menu_id').val(),
                 menu_item_id: $('#dlpom_menu_item_id').val(),
                 number_of_posts: $('#dlpom_number_of_posts').val(),
+                nonce: dlpomData.nonce // Add nonce for security
             };
-
-            $.post(ajaxurl, data, function(response) {
-
+        
+            // Use the localized AJAX URL from dlpomData
+            $.post(dlpomData.ajax_url, data, function(response) {
                 console.log(response);
                 if (response.success) {
                     $('#dlpom-config-status').html('<p>' + response.data + '</p>');
@@ -153,68 +154,31 @@ jQuery(document).ready(function($) {
 
         $('#dlpom-update-menu').click(function() {
             $('#dlpom-update-status').empty();
-
+            
+            // Show the loading spinner
+            $('#dlpom-loading').show();
+            
+            // Data to be sent in the AJAX request
             var data = {
-                'action': 'dlpom_check_menu_items'
-            };
-
-            console.log(data);
-        
-            $.post(ajaxurl, data, function(response) {
-                if (response.success) {
-                    console.log(response)
-                    const obj = response.data;
-
-                    console.log("Menu Data:", obj);
-
-                    if (!compareArrays(obj.current_child_items, obj.recent_posts)) {
-                        const totalItems = obj.current_child_items.length + obj.recent_posts.length;
-
-                        processDeletion(obj.current_child_items, totalItems, function(itemsProcessed) {
-                            processPosts(obj.recent_posts, obj.menu_id, obj.menu_item_id, totalItems, itemsProcessed);
-                        });
-                    } else {
-                        $('#dlpom-update-status').append(
-                            `<p>Menu Item ${obj.menu_item_name} is updated with the latest ${obj.recent_posts.length} posts</p>`
-                        );
-                    }
-                } else {
-                    alert('Error: ' + response.data);
-                }
-            });
-        });
-
-        $('#dlpom-delete-items').click(function() {
-            var data = {
-                'action': 'dlpom_get_child_items'
+                'action': 'dlpom_update_menu',
+                'nonce': dlpomData.nonce // Include the nonce for security
             };
             
-            $.post(ajaxurl, data, function(response) {
-                var progress = 50;
-                $('#dlpom-progress-bar').css('width', progress + '%').text(progress.toFixed(2) + '%');
-
+            // Send AJAX request using the localized ajax URL
+            $.post(dlpomData.ajax_url, data, function(response) {
+                // Hide the loading spinner once the AJAX call is complete
+                $('#dlpom-loading').hide();
+        
                 if (response.success) {
-                    var childItems = response.data;
-                    console.log("Child items:", childItems);
+                    $('#dlpom-update-status').html('<p>' + response.data + '</p>');
                 } else {
-                    alert('Error: ' + response.data);
+                    $('#dlpom-update-status').html('<p>Error: ' + response.data + '</p>');
                 }
             });
         });
+        
     }
 });
-
-// Helper function to compare arrays of menu items
-function compareArrays(array1, array2) {
-    if (array1.length !== array2.length) return false;
-
-    return array1.every((item1, index) => {
-        const item2 = array2[index];
-        return item1.title === item2.post_title && item1.object === "post";
-    });
-}
-
-
 
 
 })(jQuery); 
