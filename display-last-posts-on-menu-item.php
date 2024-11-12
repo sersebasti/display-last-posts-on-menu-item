@@ -3,7 +3,7 @@
 Plugin Name: Display Last Posts on Menu Item
 Plugin URI: https://sersebasti.ddns.net/wp_plugins/display-last-posts-on-menu-item/
 Description: A plugin to display the latest posts in a specific menu item, helping to dynamically update the menu with recent content.
-Version: 1.0.4
+Version: 1.0.5
 Author: Sergio Sebastiani
 Author URI: https://sersebasti.ddns.net/CV
 Author Email: ser.sebastiani@gmail.com
@@ -82,25 +82,32 @@ function dlpom_render_settings_page() {
                 if ($selected_menu_id) {
                     $menu_items = wp_get_nav_menu_items($selected_menu_id);
                     foreach ($menu_items as $item) {
-                        echo '<option value="' . esc_attr($item->ID) . '" ' . selected($selected_menu_item_id, $item->ID, false) . '>' . esc_html($item->title) . '</option>';
+                        // Check if the item's parent ID matches the selected menu item ID
+                        if ($item->menu_item_parent == $selected_menu_item_id) {
+                            echo '<option value="' . esc_attr($item->ID) . '" ' . selected($selected_menu_item_id, $item->ID, false) . '>' . esc_html($item->title) . '</option>';
+                        }
                     }
                 }
                 ?>
             </select>
         </p>
 
+
         <p> 
             <label for="dlpom_number_of_posts">Number of Posts:</label>
-                <select id="dlpom_number_of_posts">
-                    <?php
-                    $selected_posts_count = get_option('dlpom_number_of_posts', 5);
-                    $total_posts = wp_count_posts()->publish; // Get the total number of posts
-                    for ($i = 1; $i <= $total_posts; $i++) {
-                        $is_selected = selected($selected_posts_count, $i, false);
-                        echo "<option value='" . esc_attr( $i ) . "' $is_selected>" . esc_html( $i ) . "</option>";
-                    }
+            <select id="dlpom_number_of_posts" name="dlpom_number_of_posts">
+                <?php
+                $selected_posts_count = get_option('dlpom_number_of_posts', 5);
+                $total_posts = wp_count_posts()->publish; // Get the total number of posts
+                for ($i = 1; $i <= $total_posts; $i++) {
                     ?>
-                </select>
+                    <option value="<?php echo esc_attr($i); ?>" <?php echo esc_attr(selected($selected_posts_count, $i, false)); ?>>
+                        <?php echo esc_html($i); ?>
+                    </option>
+                    <?php
+                }
+                ?>
+            </select>
         </p>
         
         <hr>
@@ -109,8 +116,9 @@ function dlpom_render_settings_page() {
         <hr>
         <p><button id="dlpom-update-menu" class="button button-primary">Update Menu with Latest Posts</button></p>
         <hr>
+
         <div id="dlpom-loading" style="display: none; text-align: left; margin-top: 20px;">
-            <img src="<?php echo plugins_url( 'loading.gif', __FILE__ ); ?>" alt="Loading..." style="width: 200px; height: 200px;">
+            <img src="<?php echo esc_url(plugins_url('loading.gif', __FILE__)); ?>" alt="Loading..." style="width: 200px; height: 200px;">
             <p>Processing, please wait. This may take a few minutes depending on the number of posts.</p>
         </div>
         <div id="dlpom-update-status"></div>
@@ -123,7 +131,7 @@ function dlpom_render_settings_page() {
 }
 
 
-
+/*
 // Hook the function to WordPress admin initialization
 add_action('admin_init', 'dlpom_check_menu_item');
 
@@ -136,10 +144,6 @@ function dlpom_check_menu_item() {
 
     // Only proceed if the configuration options are already saved in the database
     if (!$menu_id || !$menu_item_id || !$post_count) {
-        $dlpom_messages[] = [
-            'type' => 'error',
-            'message' => esc_html('No Configuration - Update Configuration. The configuration data is missing or incomplete.', 'display-last-posts-on-menu-item')
-        ];
         return;
     }
 
@@ -149,17 +153,6 @@ function dlpom_check_menu_item() {
     // Check if the menu exists
     $menu = wp_get_nav_menu_object($menu_id);
     if (!$menu) {
-        $dlpom_messages[] = [
-            'type' => 'error',
-            'message' => wp_kses_post(
-                sprintf(
-                    __('Configuration Error - Update Configuration. The menu does not exist. Menu ID: %1$s, Menu Item ID: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
-                    esc_html($menu_id),
-                    esc_html($menu_item_id),
-                    esc_html($post_count)
-                )
-            )
-        ];
         return;
     }
 
@@ -174,37 +167,15 @@ function dlpom_check_menu_item() {
     }
 
     if (!$menu_item_exists) {
-        $dlpom_messages[] = [
-            'type' => 'error',
-            'message' => wp_kses_post(
-                sprintf(
-                    __('Configuration Error - Update Configuration. The menu item does not exist. Menu ID: %1$s, Menu Item ID: %2$s, Number of Posts: %3$d', 'display-last-posts-on-menu-item'),
-                    esc_html($menu_id),
-                    esc_html($menu_item_id),
-                    esc_html($post_count)
-                )
-            )
-        ];
         return;
     }
 
     // Check if the post count is valid
     if ($post_count < 1 || $post_count > $total_posts) {
-        $dlpom_messages[] = [
-            'type' => 'error',
-            'message' => wp_kses_post(
-                sprintf(
-                    __('Configuration Error - Update Configuration. Invalid post count. It should be between 1 and %1$d. Menu ID: %2$s, Menu Item ID: %3$s, Number of Posts: %4$d', 'display-last-posts-on-menu-item'),
-                    intval($total_posts),
-                    esc_html($menu_id),
-                    esc_html($menu_item_id),
-                    intval($post_count)
-                )
-            )
-        ];
         return;
     }
-
+    
+    /*
     // Success message if everything is valid
     $dlpom_messages[] = [
         'type' => 'success',
@@ -217,8 +188,9 @@ function dlpom_check_menu_item() {
             )
         )
     ];
+    
 }
-
+*/
 
 add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
 
