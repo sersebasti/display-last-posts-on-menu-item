@@ -34,7 +34,10 @@ function dlpom_sanitize_menu_item_id($input) {
     return intval($input); // Ensures the value is an integer
 }
 
-function dlpom_sanitize_number_of_posts($input) {
+function dlpom_sani
+
+
+tize_number_of_posts($input) {
     $input = intval($input); // Ensures the value is an integer
     return ($input > 0) ? $input : 1; // Validates it's a positive number, defaults to 1 if invalid
 }
