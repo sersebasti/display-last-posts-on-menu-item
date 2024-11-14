@@ -78,6 +78,9 @@ function dlpom_render_settings_page() {
             <select id="dlpom_menu_item_id" <?php if (!$selected_menu_id) echo 'disabled'; ?>>
                 <option value="" disabled>Select Menu Item</option>
                 <?php
+
+
+                /*
                 $selected_menu_item_id = get_option('dlpom_menu_item_id');
                 if ($selected_menu_id) {
                     $menu_items = wp_get_nav_menu_items($selected_menu_id);
@@ -88,6 +91,7 @@ function dlpom_render_settings_page() {
                         }
                     }
                 }
+                /**/
                 ?>
             </select>
         </p>
@@ -339,10 +343,13 @@ function dlpom_enqueue_admin_assets($hook) {
     wp_enqueue_style('dlpom-admin-style', plugin_dir_url(__FILE__) . 'admin-style.css');
     wp_enqueue_script('dlpom-admin-script', plugin_dir_url(__FILE__) . 'admin-script.js', array('jquery'), null, true);
 
-    // Localize script to pass AJAX URL and nonce to JavaScript
+
+    $selected_menu_item_id = get_option('dlpom_menu_item_id');
+
     wp_localize_script('dlpom-admin-script', 'dlpomData', [
         'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('dlpom_nonce_action')
+        'nonce' => wp_create_nonce('dlpom_nonce_action'),
+        'selected_menu_item_id' => $selected_menu_item_id
     ]);
 }
 
