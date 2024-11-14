@@ -3,7 +3,7 @@
 Plugin Name: Display Last Posts on Menu Item
 Plugin URI: https://sersebasti.ddns.net/wp_plugins/display-last-posts-on-menu-item/
 Description: A plugin to display the latest posts in a specific menu item, helping to dynamically update the menu with recent content.
-Version: 1.0.5
+Version: 1.0.6
 Author: Sergio Sebastiani
 Author URI: https://sersebasti.ddns.net/CV
 Author Email: ser.sebastiani@gmail.com
@@ -197,7 +197,7 @@ add_action('wp_ajax_dlpom_get_menu_items', 'dlpom_get_menu_items');
 function dlpom_get_menu_items() {
 
     // Verify nonce and permissions
-    my_plugin_check_permissions('dlpom_nonce_action');
+    dlpom_check_permissions('dlpom_nonce_action');
 
 
     $menu_id = intval($_POST['menu_id']);
@@ -230,7 +230,7 @@ add_action('wp_ajax_dlpom_update_configuration', 'dlpom_update_configuration');
 function dlpom_update_configuration() {
 
     // Verify nonce and permissions
-    my_plugin_check_permissions('dlpom_nonce_action'); 
+    dlpom_check_permissions('dlpom_nonce_action'); 
 
     // Retrieve and validate the data
     $menu_id = isset($_POST['menu_id']) ? intval($_POST['menu_id']) : 0;
@@ -257,7 +257,7 @@ add_action('wp_ajax_dlpom_update_menu', 'dlpom_update_menu');
 
 function dlpom_update_menu() {
     // Verify nonce and permissions
-    my_plugin_check_permissions('dlpom_nonce_action');
+    dlpom_check_permissions('dlpom_nonce_action');
 
     // Retrieve configuration from database
     $menu_id = get_option('dlpom_menu_id');
@@ -347,7 +347,7 @@ function dlpom_enqueue_admin_assets($hook) {
 }
 
 
-function my_plugin_check_permissions($nonce_action, $capability = 'manage_options') {
+function dlpom_check_permissions($nonce_action, $capability = 'manage_options') {
     // Check nonce validity
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], $nonce_action)) {
         wp_send_json_error(esc_html__('Unauthorized access', 'display-last-posts-on-menu-item'),401);
